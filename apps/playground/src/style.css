@@ -50,3 +50,24 @@ h1 {
   font-size: 0.7rem;
   line-height: 1.5;
 }
+
+.document-inspector {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid #d8ddd3;
+  background: #fbfaf6;
+  color: #616a63;
+  font-size: 0.8rem;
+}
+
+.document-inspector summary {
+  cursor: pointer;
+  color: #252d28;
+}
+
+.document-inspector pre {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

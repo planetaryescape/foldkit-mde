@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/editor.ts"
+    ".": "./src/editor.ts",
+    "./plugins": "./src/plugins.ts"
   },
   "scripts": {
     "test": "bun test"

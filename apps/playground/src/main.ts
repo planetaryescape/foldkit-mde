@@ -1,5 +1,6 @@
 import { init, Model, type Message, update } from '@foldkit-mde/core'
 import { Synchronize, view as editorView } from '@foldkit-mde/editor'
+import { json } from '@foldkit-mde/plugins/json'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
 
@@ -26,6 +27,17 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         ],
       ),
       editorView(model, h),
+      h.details(
+        [h.Class('document-inspector')],
+        [
+          h.summary([], ['JSON representation']),
+          h.p([], ['A read-only plugin output from the same Markdown document.']),
+          h.pre(
+            [h.AriaLabel('JSON document')],
+            [JSON.stringify(json.project(model.source), null, 2)],
+          ),
+        ],
+      ),
       h.footer(
         [h.Class('playground-footer')],
         [

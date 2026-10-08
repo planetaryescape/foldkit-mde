@@ -19,6 +19,7 @@
       "dependencies": {
         "@foldkit-mde/core": "workspace:*",
         "@foldkit-mde/editor": "workspace:*",
+        "@foldkit-mde/plugins": "workspace:*",
         "foldkit": "catalog:",
       },
     },
@@ -46,6 +47,14 @@
         "@foldkit-mde/core": "workspace:*",
         "effect": "catalog:",
         "foldkit": "catalog:",
+      },
+    },
+    "packages/plugins": {
+      "name": "@foldkit-mde/plugins",
+      "version": "0.0.0",
+      "dependencies": {
+        "@foldkit-mde/core": "workspace:*",
+        "effect": "catalog:",
       },
     },
   },
@@ -79,6 +88,8 @@
     "@foldkit-mde/editor": ["@foldkit-mde/editor@workspace:packages/editor"],
 
     "@foldkit-mde/playground": ["@foldkit-mde/playground@workspace:apps/playground"],
+
+    "@foldkit-mde/plugins": ["@foldkit-mde/plugins@workspace:packages/plugins"],
 
     "@oxfmt/binding-android-arm-eabi": ["@oxfmt/binding-android-arm-eabi@0.72.0", "", { "os": "android", "cpu": "arm" }, "sha512-u4U1uaDOVBuorGNC/07NLm48nECHOiJJka002YGML16Md2DRvf38RGBt01lH60EOGvNlFVmbLoksQedNBoZHKw=="],
 

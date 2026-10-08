@@ -1,0 +1,9 @@
+{
+  "name": "@foldkit-mde/plugins",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./json": "./src/json.ts" },
+  "scripts": { "test": "bun test" },
+  "dependencies": { "@foldkit-mde/core": "workspace:*", "effect": "catalog:" }
+}

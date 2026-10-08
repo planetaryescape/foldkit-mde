@@ -3,84 +3,119 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Foldkit MDE architecture</title>
+    <title>Foldkit MDE: architecture, files, and package usage</title>
     <style>
       :root {
         color: #252d28;
         background: #e9ede5;
         font:
-          15px/1.6 system-ui,
+          15px/1.65 system-ui,
           sans-serif;
+        --paper: #fbfaf6;
+        --green: #49634d;
+        --line: #cbd2c5;
+        --muted: #616a63;
+        --blue: #405d73;
+        --amber: #77532d;
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
         margin: 0;
       }
       main {
-        max-width: 1080px;
+        max-width: 1180px;
         margin: auto;
         padding: clamp(20px, 5vw, 64px);
       }
       h1,
-      h2 {
+      h2,
+      h3 {
         font-family: Georgia, serif;
         font-weight: 400;
         line-height: 1.15;
       }
       h1 {
-        font-size: clamp(32px, 5vw, 54px);
-        margin: 12px 0;
+        font-size: clamp(36px, 5vw, 62px);
+        max-width: 850px;
+        margin: 16px 0;
       }
       h2 {
-        font-size: 23px;
-        margin: 0 0 10px;
+        font-size: clamp(27px, 3vw, 36px);
+        margin: 8px 0 16px;
+      }
+      h3 {
+        font-size: 24px;
+        margin: 8px 0 14px;
+      }
+      p {
+        margin: 8px 0 16px;
+      }
+      a {
+        color: var(--green);
+        text-underline-offset: 4px;
+      }
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: 4px;
       }
       .eyebrow,
       .label {
-        color: #49634d;
+        color: var(--green);
         font-size: 11px;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.13em;
         text-transform: uppercase;
       }
-      .intro {
-        max-width: 720px;
-        color: #616a63;
+      .lead {
+        max-width: 780px;
+        font-size: 18px;
+        color: var(--muted);
       }
-      .flow {
+      .meta,
+      .muted,
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 24px;
+        border-block: 1px solid var(--line);
+        padding: 18px 0;
+        margin: 30px 0 40px;
+        font-size: 13px;
+      }
+      section {
+        margin-top: 56px;
+        scroll-margin-top: 24px;
+      }
+      .grid {
         display: grid;
-        grid-template-columns: 1fr auto 1.25fr auto 1fr;
-        align-items: center;
-        gap: 16px;
-        margin: 36px 0 24px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
       }
-      .box {
+      .grid > * {
+        min-width: 0;
+      }
+      .card,
+      figure {
+        background: var(--paper);
+        border: 1px solid var(--line);
         padding: 24px;
-        background: #fbfaf6;
-        border: 1px solid #d8ddd3;
+        margin: 0;
+        min-width: 0;
       }
-      .core {
-        border: 2px solid #55735b;
+      .card.core {
+        border-top: 3px solid var(--green);
       }
-      .arrow {
-        color: #49634d;
-        font-size: 26px;
-        text-align: center;
+      .card.editor {
+        border-top: 3px solid var(--blue);
       }
-      p {
-        margin: 8px 0;
-      }
-      code {
-        font:
-          12px/1.6 ui-monospace,
-          monospace;
-        overflow-wrap: anywhere;
-      }
-      .plugins {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-      }
-      .plugins .box {
-        padding: 18px;
+      .card.host {
+        border-top: 3px solid var(--amber);
       }
       .planned {
         border-style: dashed;
@@ -88,153 +123,1037 @@
       }
       .badge {
         display: inline-block;
-        font-size: 10px;
-        letter-spacing: 0.06em;
-        color: #49634d;
-        background: #e5eadf;
-        padding: 2px 7px;
+        background: #e1e8dc;
+        color: var(--green);
+        padding: 3px 8px;
+        font:
+          10px/1.5 system-ui,
+          sans-serif;
+        letter-spacing: 0.07em;
+        margin-bottom: 10px;
+      }
+      .badge.future {
+        background: #e7ded1;
+        color: var(--amber);
+      }
+      .callout {
+        border-left: 3px solid var(--green);
+        padding: 12px 20px;
+        margin: 20px 0;
+        background: #e0e6da;
+      }
+      code,
+      pre {
+        font:
+          12px/1.7 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+      code {
+        overflow-wrap: anywhere;
+      }
+      pre {
+        margin: 0;
+        white-space: pre;
+        overflow-x: auto;
+        overflow-wrap: normal;
+      }
+      .code {
+        padding: 20px;
+        background: #252d28;
+        color: #f2f4ec;
+        border: 1px solid #252d28;
+      }
+      .code .label {
+        color: #b6cbb6;
         margin-bottom: 12px;
       }
-      .planned .badge {
-        background: #e1e4dd;
-        color: #616a63;
+      .tree {
+        line-height: 1.9;
+        white-space: pre;
+        overflow-x: auto;
       }
-      .rule {
-        border-top: 1px solid #cbd2c5;
-        margin-top: 30px;
-        padding-top: 22px;
+      .tree a {
+        text-decoration: none;
       }
-      .notes {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
+      .tree a:hover {
+        text-decoration: underline;
       }
-      ul {
-        padding-left: 20px;
+      .tree .c {
+        color: var(--green);
       }
-      .muted {
-        color: #616a63;
+      .tree .e {
+        color: var(--blue);
+      }
+      .tree .h {
+        color: var(--amber);
+      }
+      ul,
+      ol {
+        padding-left: 21px;
+        margin: 8px 0;
+      }
+      li {
+        margin: 7px 0;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--paper);
         font-size: 13px;
       }
-      @media (max-width: 800px) {
-        .flow {
-          grid-template-columns: 1fr;
+      th,
+      td {
+        text-align: left;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--green);
+        font-weight: 600;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td:first-child {
+        min-width: 190px;
+      }
+      .diagram {
+        overflow-x: auto;
+      }
+      svg {
+        display: block;
+        width: 100%;
+        min-width: 760px;
+        height: auto;
+      }
+      svg text {
+        font-family: system-ui, sans-serif;
+        fill: #252d28;
+      }
+      svg .heading {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      svg .small {
+        font-size: 13px;
+        fill: #616a63;
+      }
+      svg .path {
+        font:
+          12px ui-monospace,
+          monospace;
+      }
+      svg .box {
+        fill: #fbfaf6;
+        stroke: #cbd2c5;
+        stroke-width: 1.5;
+      }
+      svg .core-box {
+        fill: #e5ebdf;
+        stroke: #49634d;
+        stroke-width: 2;
+      }
+      svg .edge {
+        fill: none;
+        stroke: #49634d;
+        stroke-width: 2;
+      }
+      figcaption {
+        margin-top: 15px;
+      }
+      details {
+        margin-top: 20px;
+      }
+      summary {
+        cursor: pointer;
+        color: var(--green);
+        padding: 12px 0;
+      }
+      footer {
+        margin-top: 56px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+      }
+      @media (max-width: 760px) {
+        .grid {
+          grid-template-columns: minmax(0, 1fr);
         }
-        .arrow {
-          transform: rotate(90deg);
+        .card,
+        figure {
+          padding: 18px;
         }
-        .plugins,
-        .notes {
-          grid-template-columns: 1fr 1fr;
+        section {
+          margin-top: 40px;
+        }
+        .lead {
+          font-size: 16px;
         }
       }
-      @media (max-width: 480px) {
-        .plugins,
-        .notes {
-          grid-template-columns: 1fr;
+      @media print {
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        .card,
+        figure,
+        pre {
+          break-inside: avoid;
+        }
+        nav {
+          display: none;
+        }
+        svg {
+          min-width: 0;
         }
       }
     </style>
   </head>
   <body>
     <main>
-      <div class="eyebrow">Foldkit / Effect / one document</div>
-      <h1>One source. Different ways to work with it.</h1>
-      <p class="intro">
-        Visual editing and raw Markdown write to the same core. JSON is a representation plugin, not
-        another document to keep in sync.
-      </p>
-      <section class="flow" aria-label="Editing and representation data flow">
-        <div class="box">
-          <div class="label">packages/editor</div>
-          <h2>Editing surfaces</h2>
-          <p>One continuous visual editing host</p>
-          <p>Raw Markdown textarea</p>
-          <p class="muted">DOM ranges, paste, composition and focus stay here.</p>
-        </div>
-        <div class="arrow" aria-label="Messages and derived rendering">⇄</div>
-        <div class="box core">
-          <div class="label">packages/core</div>
-          <h2>The authority</h2>
-          <p><code>source + selection + mode + history</code></p>
-          <p>Schema messages → Match reducer</p>
-          <p class="muted">
-            One writer: <code>update</code>. Parsed blocks and inline marks are derived from source.
-          </p>
-        </div>
-        <div class="arrow" aria-label="Read-only projection">→</div>
-        <div class="box">
-          <div class="label">packages/plugins</div>
-          <h2>Representations</h2>
-          <p><code>project(source) → output</code></p>
-          <p class="muted">The host chooses the plugin. A projection cannot mutate editor state.</p>
+      <header>
+        <div class="eyebrow">Foldkit MDE / an implementation map</div>
+        <h1>From a keystroke to a package you can use.</h1>
+        <p class="lead">
+          One Markdown source, a pure state transition, two editing surfaces, and plugins with
+          distinct jobs. Here is where each part lives and how a consumer connects it.
+        </p>
+        <p class="meta">
+          Source baseline: local revision <code>fe42ef0</code> · checked 8 October 2026 · Effect
+          4.0.0 / Foldkit 0.167.0
+        </p>
+      </header>
+      <nav aria-label="Architecture sections">
+        <a href="#map">01 / Package map</a><a href="#files">02 / File tree</a
+        ><a href="#state">03 / State and rules</a><a href="#flow">04 / Edit flow</a
+        ><a href="#plugins">05 / Plugin contracts</a><a href="#usage">06 / Use the packages</a
+        ><a href="#gbfm">07 / gbfm and gaps</a><a href="#checks">08 / Evidence</a>
+      </nav>
+
+      <section id="map">
+        <div class="eyebrow">01 / Dependencies and ownership</div>
+        <h2>The application assembles the editor.</h2>
+        <p>
+          Arrows below mean <strong>imports</strong>, not event flow. Core has no knowledge of the
+          browser, plugins, or the host.
+        </p>
+        <figure>
+          <div class="diagram">
+            <svg viewBox="0 0 1000 440" role="img" aria-labelledby="map-title map-desc">
+              <title id="map-title">Package imports and public entry points</title>
+              <desc id="map-desc">
+                The playground imports editor, core, and JSON plugins. Editor and plugins import
+                core. Core imports Effect only. Vendored anti-slop is development tooling and stays
+                outside the application graph.
+              </desc>
+              <defs>
+                <marker
+                  id="arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#49634d" />
+                </marker>
+              </defs>
+              <rect class="box" x="230" y="10" width="540" height="100" />
+              <text class="heading" x="254" y="42">Application / composition root</text>
+              <text class="path" x="254" y="67">apps/playground/src/main.ts</text>
+              <text class="small" x="254" y="90">
+                Owns Runtime.run, initial source, commands, and plugin choice
+              </text>
+              <path class="edge" d="M 300 110 L 155 160" marker-end="url(#arrow)" />
+              <path class="edge" d="M 500 110 L 500 160" marker-end="url(#arrow)" />
+              <path class="edge" d="M 700 110 L 845 160" marker-end="url(#arrow)" />
+              <rect class="box" x="10" y="165" width="290" height="120" />
+              <text class="heading" x="30" y="196">@foldkit-mde/editor</text>
+              <text class="path" x="30" y="222">view · Synchronize · style.css</text>
+              <text class="small" x="30" y="246">Foldkit controls + DOM adapter</text>
+              <text class="small" x="30" y="267">External: Foldkit + Effect</text>
+              <rect class="core-box" x="355" y="165" width="290" height="120" />
+              <text class="heading" x="375" y="196">@foldkit-mde/core</text>
+              <text class="path" x="375" y="222">Model · Message · init · update</text>
+              <text class="small" x="375" y="246">Parsing, transactions, plugin types</text>
+              <text class="small" x="375" y="267">External: Effect only</text>
+              <rect class="box" x="700" y="165" width="290" height="120" />
+              <text class="heading" x="720" y="196">@foldkit-mde/plugins/json</text>
+              <text class="path" x="720" y="222">json · JsonDocument</text>
+              <text class="small" x="720" y="246">Pure source → JSON projection</text>
+              <text class="small" x="720" y="267">External: Effect only</text>
+              <path class="edge" d="M 300 225 L 355 225" marker-end="url(#arrow)" />
+              <path class="edge" d="M 700 225 L 645 225" marker-end="url(#arrow)" />
+              <rect class="box" x="10" y="325" width="980" height="95" stroke-dasharray="6 5" />
+              <text class="heading" x="30" y="357">
+                Development fence / separate from the editor bundle
+              </text>
+              <text class="path" x="30" y="383">
+                packages/anti-slop · tsconfig*.json · .oxlintrc.json · .githooks/pre-commit
+              </text>
+              <text class="small" x="30" y="406">
+                Effect-aware compiler, lint, formatting, tests, and a local commit hook
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            Core owns the contracts. The editor interprets browser input. The host selects concrete
+            representations. On small screens, scroll the diagram sideways.
+          </figcaption>
+        </figure>
+        <div class="callout">
+          <strong>Library status today:</strong> these are private Bun workspaces with TypeScript
+          source exports. There is no published package, installer, or
+          <code>createEditor()</code> API yet.
         </div>
       </section>
-      <p class="label">Plugin roles are different contracts, not one giant hook system</p>
-      <section class="plugins" aria-label="Plugin capabilities and delivery status">
-        <div class="box">
-          <span class="badge">IMPLEMENTED</span>
-          <h2>JSON</h2>
-          <p>Versioned Schema output: source, paragraph nodes, bold marks and opaque raw blocks.</p>
-          <code>Representation&lt;JsonDocument&gt;</code>
+
+      <section id="files">
+        <div class="eyebrow">02 / Architecture → file tree</div>
+        <h2>Every boundary has a file owner.</h2>
+        <p>
+          Click a file in the tree to reach its responsibility below. Colors match core, editor, and
+          host ownership.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <pre class="tree">foldkit-mde/
+├── apps/playground/
+│   ├── package.json
+│   ├── src/
+│   │   ├── <a class="h" href="#host-files">main.ts</a>
+│   │   ├── <a class="h" href="#host-files">index.html</a>
+│   │   ├── <a class="h" href="#host-files">server.ts</a>
+│   │   └── <a class="h" href="#host-files">style.css</a>
+│   └── test/browser-check.js
+├── packages/
+│   ├── core/
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── <a class="c" href="#core-files">editor.ts</a>
+│   │       ├── <a class="c" href="#core-files">bold.ts</a>
+│   │       ├── <a class="c" href="#core-files">markdown.ts</a>
+│   │       ├── <a class="c" href="#core-files">plugins.ts</a>
+│   │       └── editor.test.ts
+│   ├── editor/
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── <a class="e" href="#editor-files">view.ts</a>
+│   │       ├── <a class="e" href="#editor-files">surface.ts</a>
+│   │       ├── <a class="e" href="#editor-files">document.ts</a>
+│   │       └── <a class="e" href="#editor-files">editor.css</a>
+│   ├── plugins/
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── <a class="c" href="#plugin-files">json.ts</a>
+│   │       └── json.test.ts
+│   └── anti-slop/  (vendored dev tooling)
+├── docs/
+│   ├── architecture.html  (this page)
+│   ├── effect-state-machines-research.md
+│   └── rat-stack-reference.md
+├── package.json  (workspaces + catalog)
+├── bun.lock
+├── tsconfig.json / tsconfig.base.json
+└── .githooks/pre-commit</pre>
+          </div>
+          <div>
+            <article class="card core" id="core-files">
+              <div class="label">packages/core/src</div>
+              <h3>State and pure transformations</h3>
+              <ul>
+                <li>
+                  <code>editor.ts</code>: Schema Model/Message, <code>init</code>, exhaustive
+                  <code>update</code>, transaction application, undo/redo.
+                </li>
+                <li>
+                  <code>bold.ts</code>: Selection/Transaction schemas and pure bold range
+                  replacement.
+                </li>
+                <li>
+                  <code>markdown.ts</code>: small paragraph/bold parser, raw-block fallback, source
+                  ↔ visual offsets.
+                </li>
+                <li>
+                  <code>plugins.ts</code>: representation and formatting interfaces, not a registry.
+                </li>
+              </ul>
+            </article>
+            <article class="card editor" id="editor-files">
+              <div class="label">packages/editor/src</div>
+              <h3>Browser boundary</h3>
+              <ul>
+                <li>
+                  <code>view.ts</code>: toolbar, modes, status, mount point; exports
+                  <code>view</code> and <code>Synchronize</code>.
+                </li>
+                <li>
+                  <code>surface.ts</code>: Observe mount, scoped listeners, message emission,
+                  composition, paste, keyboard shortcuts, synchronization command.
+                </li>
+                <li>
+                  <code>document.ts</code>: render visual DOM, read changed DOM/ranges, split
+                  paragraphs, preserve unchanged source.
+                </li>
+                <li>
+                  <code>editor.css</code>: reusable editor appearance, separate from playground
+                  styling.
+                </li>
+              </ul>
+            </article>
+          </div>
         </div>
-        <div class="box">
-          <span class="badge">CONTRACT + BOLD OPERATION</span>
-          <h2>Formatting</h2>
-          <p>Source and selection in. A transaction out. Core owns applying it and undo.</p>
-          <code>FormattingPlugin</code>
-          <p class="muted">
-            Bold is still wired directly. Dynamic registration is next, not implemented.
-          </p>
-        </div>
-        <div class="box planned">
-          <span class="badge">PLANNED</span>
-          <h2>HTML</h2>
-          <p>
-            Another representation plugin. Its contract must define escaping and trusted HTML
-            policy.
-          </p>
-          <code>Representation&lt;HtmlOutput&gt;</code>
-        </div>
-        <div class="box planned">
-          <span class="badge">PLANNED</span>
-          <h2>Custom components</h2>
-          <p>
-            Plugin syntax plus a visual node adapter. gbfm can supply music cards without moving
-            Spotify into core.
-          </p>
-          <p class="muted">Current fallback: an opaque source card.</p>
+        <div class="grid" style="margin-top: 20px">
+          <article class="card host" id="host-files">
+            <div class="label">apps/playground/src</div>
+            <h3>Executable consumer</h3>
+            <p>
+              <code>main.ts</code> composes core, view, commands, JSON, and Foldkit runtime.
+              <code>index.html</code> supplies <code>#root</code>, scripts, and editor CSS.
+            </p>
+            <p>
+              <code>server.ts</code> serves the browser entry with Bun.
+              <code>style.css</code> styles the demo shell and inspector. Neither belongs inside
+              core.
+            </p>
+          </article>
+          <article class="card core" id="plugin-files">
+            <div class="label">packages/plugins/src</div>
+            <h3>Concrete output formats</h3>
+            <p>
+              <code>json.ts</code> declares the versioned JsonDocument Schema and implements
+              <code>json.project(source)</code> with core parsing.
+            </p>
+            <p>
+              There is no HTML or custom-component implementation here yet. Bold currently lives in
+              core, not in this workspace.
+            </p>
+          </article>
         </div>
       </section>
-      <section class="rule notes">
-        <div>
-          <h2>What happens when you type?</h2>
-          <p>
-            Browser input → adapter reads changed DOM → source + selection message → core updates
-            history → Foldkit synchronizes the document → JSON is projected again.
-          </p>
-          <p class="muted">
-            Unchanged blocks and adjacent original separators retain their source. Structural edits
-            intentionally change the affected structure.
-          </p>
+
+      <section id="state">
+        <div class="eyebrow">03 / State machine, not another runtime</div>
+        <h2>Source is the fact. Everything else has a defined role.</h2>
+        <div class="grid">
+          <div class="code">
+            <div class="label">packages/core/src/editor.ts / Model shape</div>
+            <pre>
+Model {
+  source: string
+  selection: { start: number, end: number }
+  mode: 'Visual' | 'Markdown'
+  past: readonly { source, selection }[]
+  future: readonly { source, selection }[]
+}</pre>
+          </div>
+          <div class="card">
+            <h3>The invariants</h3>
+            <ul>
+              <li>
+                <code>update(model, message)</code> is the document writer. It returns the next
+                Model without mutating the previous one.
+              </li>
+              <li>
+                Selection uses Markdown source offsets, not visible character counts. Ranges are
+                end-exclusive.
+              </li>
+              <li>Source-changing edits snapshot source + selection and clear redo.</li>
+              <li>
+                Mode and selection changes do not add history entries. Undo/redo do not restore
+                mode.
+              </li>
+              <li>
+                Parsed blocks, rendered DOM, and JSON nodes are derived. The browser temporarily
+                mutates DOM during input; the adapter commits the result through messages.
+              </li>
+            </ul>
+          </div>
         </div>
-        <div>
-          <h2>Who owns the hard parts?</h2>
-          <ul>
-            <li>Effect: schemas, scoped listener lifetimes and runtime work.</li>
-            <li>Foldkit: messages, rendering and the application loop.</li>
-            <li>Host: plugin choice, saving, publishing and future Alchemy infrastructure.</li>
-            <li>
-              Fence: strict types, lint, generated history tests, browser checks and commit hooks.
-            </li>
-          </ul>
+        <div class="table-wrap" style="margin-top: 20px">
+          <table>
+            <thead>
+              <tr>
+                <th>Message</th>
+                <th>Where it comes from</th>
+                <th>Core transition</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>UpdatedSource</code></td>
+                <td>Textarea or DOM read after input</td>
+                <td>Replace source + selection; add history only if source changed.</td>
+              </tr>
+              <tr>
+                <td><code>Selected</code></td>
+                <td>DOM selectionchange / beforeinput</td>
+                <td>Update source offsets only.</td>
+              </tr>
+              <tr>
+                <td><code>Applied</code></td>
+                <td>Paragraph split or a formatting caller</td>
+                <td>
+                  Replace <code>[start, end)</code> with transaction text and select its resulting
+                  range.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ToggledBold</code></td>
+                <td>Toolbar / keyboard</td>
+                <td>
+                  Call the directly wired bold operation, then apply its transaction if supported.
+                </td>
+              </tr>
+              <tr>
+                <td><code>ChangedMode</code></td>
+                <td>Mode controls / Edit source</td>
+                <td>Change mode without rewriting Markdown.</td>
+              </tr>
+              <tr>
+                <td><code>Undo / Redo</code></td>
+                <td>Toolbar / keyboard / browser history input</td>
+                <td>Move source + selection snapshots between past and future.</td>
+              </tr>
+              <tr>
+                <td><code>Synchronized</code></td>
+                <td>Completed Synchronize command</td>
+                <td>No state change.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">
+          Schema defines value shapes; Match checks exhaustive handling. This is our reducer-based
+          machine, not XState or an extra actor system. External JSON still needs explicit decoding.
+        </p>
+      </section>
+
+      <section id="flow">
+        <div class="eyebrow">04 / Runtime control flow</div>
+        <h2>Follow one edit through the actual calls.</h2>
+        <figure>
+          <div class="diagram">
+            <svg viewBox="0 0 1000 455" role="img" aria-labelledby="flow-title flow-desc">
+              <title id="flow-title">A visual edit through browser, core, host, and runtime</title>
+              <desc id="flow-desc">
+                Browser input reaches Observe. read reconstructs source and selection. Observe emits
+                UpdatedSource. The host calls core update then chooses Synchronize when source or
+                mode changed. Foldkit renders views, projects JSON, and executes Synchronize to
+                rebuild DOM and restore selection.
+              </desc>
+              <defs>
+                <marker
+                  id="flow-arrow"
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="7"
+                  markerHeight="7"
+                  orient="auto"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#49634d" />
+                </marker>
+              </defs>
+              <rect class="box" x="10" y="10" width="300" height="110" />
+              <text class="heading" x="30" y="40">1 / Browser input</text>
+              <text class="small" x="30" y="66">One contenteditable host / textarea</text>
+              <text class="path" x="30" y="94">surface.ts → Observe listeners</text>
+              <rect class="box" x="350" y="10" width="300" height="110" />
+              <text class="heading" x="370" y="40">2 / DOM → source offsets</text>
+              <text class="small" x="370" y="66">read() / textarea.value</text>
+              <text class="path" x="370" y="94">document.ts + surface.ts</text>
+              <rect class="core-box" x="690" y="10" width="300" height="110" />
+              <text class="heading" x="710" y="40">3 / Message → next Model</text>
+              <text class="small" x="710" y="66">UpdatedSource → replace / history</text>
+              <text class="path" x="710" y="94">core/editor.ts → update()</text>
+              <path class="edge" d="M 310 65 L 350 65" marker-end="url(#flow-arrow)" />
+              <path class="edge" d="M 650 65 L 690 65" marker-end="url(#flow-arrow)" />
+              <path class="edge" d="M 840 120 L 840 195" marker-end="url(#flow-arrow)" />
+              <text class="small" x="855" y="160">next Model</text>
+              <rect class="box" x="690" y="200" width="300" height="115" />
+              <text class="heading" x="710" y="230">4 / Host chooses commands</text>
+              <text class="small" x="710" y="256">Source or mode changed?</text>
+              <text class="path" x="710" y="284">main.ts → Synchronize(next)</text>
+              <rect class="box" x="350" y="200" width="300" height="115" />
+              <text class="heading" x="370" y="230">5 / Foldkit application loop</text>
+              <text class="small" x="370" y="256">View uses next Model; JSON projects</text>
+              <text class="path" x="370" y="284">main.ts → view() / json.project()</text>
+              <rect class="box" x="10" y="200" width="300" height="115" />
+              <text class="heading" x="30" y="230">6 / Command syncs the DOM</text>
+              <text class="small" x="30" y="256">Rebuild surface + restore selection</text>
+              <text class="path" x="30" y="284">surface.ts → renderVisual()</text>
+              <path class="edge" d="M 690 258 L 650 258" marker-end="url(#flow-arrow)" />
+              <path class="edge" d="M 350 258 L 310 258" marker-end="url(#flow-arrow)" />
+              <path class="edge" d="M 160 200 L 160 120" marker-end="url(#flow-arrow)" />
+              <text class="small" x="25" y="162">Ready for next input</text>
+              <rect class="box" x="10" y="365" width="980" height="72" />
+              <text class="small" x="30" y="394">
+                Synchronize completes with Synchronized → core returns the same Model.
+              </text>
+              <text class="small" x="30" y="418">
+                Selection-only changes skip synchronization. The view and command work share
+                Foldkit's runtime, not a plugin runtime.
+              </text>
+            </svg>
+          </div>
+          <figcaption>
+            The numbered flow explains ownership, not a separate scheduler. Foldkit owns view
+            rendering and command execution. Our host supplies the reducer adapter.
+          </figcaption>
+        </figure>
+        <div class="grid" style="margin-top: 20px">
+          <div class="card">
+            <h3>Special input paths</h3>
+            <ul>
+              <li>
+                <strong>Enter:</strong> beforeinput calls <code>split</code>, prevents the default,
+                and emits <code>Applied</code>.
+              </li>
+              <li>
+                <strong>Paste:</strong> insert a plain text node, then read and dispatch. Source
+                HTML is never injected.
+              </li>
+              <li>
+                <strong>Composition:</strong> pause input dispatch while composing; commit on
+                compositionend. Real OS IME is still unverified.
+              </li>
+              <li>
+                <strong>Unsupported syntax:</strong> show an opaque card. Edit source changes mode
+                at its source offset.
+              </li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Effect and Foldkit each have a job</h3>
+            <ul>
+              <li>
+                <strong>Effect Schema + Match:</strong> declare state/events and pure transitions.
+              </li>
+              <li>
+                <strong>Effect.acquireRelease:</strong> acquire browser listeners in Observe and
+                remove them when the mount scope ends.
+              </li>
+              <li><strong>Stream + Queue:</strong> turn DOM callbacks into Foldkit messages.</li>
+              <li>
+                <strong>Foldkit Mount / Command / Runtime:</strong> own observation, DOM
+                synchronization, and the application loop.
+              </li>
+            </ul>
+          </div>
         </div>
       </section>
-      <p class="rule muted">
-        Current JSON is export-only. JSON editing/import must validate a declared format and produce
-        a transaction, never write a separate state store. Full CommonMark, dynamic plugin
-        registration and multi-editor embedding remain future work.
-      </p>
+
+      <section id="plugins">
+        <div class="eyebrow">05 / Extension boundaries</div>
+        <h2>Plugins either describe an edit or derive an output.</h2>
+        <div class="grid">
+          <article class="card core">
+            <span class="badge">Existing interface + bold operation</span>
+            <h3>Formatting</h3>
+            <pre>
+interface FormattingPlugin {
+  readonly id: string
+  readonly apply: (
+    source: string,
+    selection: Selection
+  ) => Transaction | undefined
+}</pre>
+            <p>
+              A pure function describes a replacement. <code>undefined</code> means the operation
+              does not support that selection. Core applies the transaction and owns history.
+            </p>
+            <pre>
+Transaction {
+  start: number
+  end: number
+  text: string
+  selection: { start: number, end: number }
+}</pre>
+            <p class="muted">
+              Replace the source slice <code>[start, end)</code> with <code>text</code>. Selection
+              refers to the resulting source. This is a range replacement, not a second document or
+              an AST mutation.
+            </p>
+            <p class="muted">
+              Bold is still called directly by core and toolbar. There is no plugin dispatch table,
+              registration, or plugin-defined toolbar yet.
+            </p>
+          </article>
+          <article class="card core">
+            <span class="badge">Existing interface + JSON implementation</span>
+            <h3>Representation</h3>
+            <pre>
+interface Representation&lt;Output&gt; {
+  readonly id: string
+  readonly project: (source: string) => Output
+}</pre>
+            <p>
+              The caller supplies source and receives an output. JSON does not own state, apply
+              edits, or start Effects.
+            </p>
+            <p class="muted">
+              JSON is version 1: exact source, Paragraph children with text/bold, Raw nodes with
+              source, and source spans. The parser is a small supported subset, not CommonMark.
+            </p>
+          </article>
+        </div>
+        <div class="grid" style="margin-top: 20px">
+          <article class="card planned">
+            <span class="badge future">Planned / no exported API</span>
+            <h3>HTML representation</h3>
+            <p>
+              Fits the read-only projection role. It needs a supported-syntax policy, escaping, and
+              a decision about trusted HTML before implementation.
+            </p>
+            <p>
+              Likely owner: a format module in <code>packages/plugins/src</code>. No
+              <code>HtmlOutput</code> type or renderer exists today.
+            </p>
+          </article>
+          <article class="card planned">
+            <span class="badge future">Planned / contract undecided</span>
+            <h3>Custom components</h3>
+            <p>
+              Need syntax recognition, source-preserving edits, and a browser node adapter. A
+              read-only representation interface cannot cover those jobs alone.
+            </p>
+            <p>
+              Core should own neutral syntax/transaction contracts; the editor should own DOM
+              adapters; gbfm should supply music/media behavior and services.
+            </p>
+          </article>
+        </div>
+        <div class="callout">
+          <strong>JSON import is a separate editing feature.</strong> Schema decoding checks the
+          declared shape, not consistency between source and nodes. Import must choose one
+          authority, validate semantic constraints, and produce core transactions. We do not
+          implement that path yet.
+        </div>
+      </section>
+
+      <section id="usage">
+        <div class="eyebrow">06 / Consumer recipes with today's exports</div>
+        <h2>Use the core alone, or assemble a Foldkit application.</h2>
+        <p>
+          These examples use existing APIs. There is no imaginary registration or widget factory
+          hidden in the examples.
+        </p>
+        <p class="muted">
+          Code keeps its original line breaks. Scroll a code block sideways if it is wider than the
+          screen.
+        </p>
+        <div class="grid">
+          <div class="code">
+            <div class="label">A / Headless edit + JSON / runnable Bun TypeScript</div>
+            <pre id="headless-example">
+import { bold, init, Message, update } from '@foldkit-mde/core'
+import { json } from '@foldkit-mde/plugins/json'
+
+const model = init('A long track.')
+const transaction = bold(model.source, { start: 2, end: 6 })
+
+const next = transaction
+  ? update(model, Message.cases.Applied.make({ transaction }))
+  : model
+
+const output = json.project(next.source)
+console.log(JSON.stringify(output, null, 2))</pre>
+          </div>
+          <div class="card">
+            <h3>What this produces</h3>
+            <pre id="expected-example">
+source: 'A **long** track.'
+selection: { start: 4, end: 8 }
+past.length: 1
+future.length: 0
+
+JSON:
+  version: 1
+  source: 'A **long** track.'
+  nodes[0]: Paragraph
+    span: { start: 0, end: 17 }
+    children:
+      { text: 'A ', bold: false }
+      { text: 'long', bold: true }
+      { text: ' track.', bold: false }</pre>
+            <p class="muted">
+              This needs no DOM, Foldkit runtime, or editor package. Source spans use JavaScript
+              string offsets.
+            </p>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 20px">
+          <h3>B / Browser setup in this Bun monorepo</h3>
+          <div class="grid">
+            <div>
+              <div class="label">Consumer package.json dependencies</div>
+              <pre>
+{
+  "@foldkit-mde/core": "workspace:*",
+  "@foldkit-mde/editor": "workspace:*",
+  "@foldkit-mde/plugins": "workspace:*",
+  "foldkit": "catalog:"
+}</pre>
+            </div>
+            <div>
+              <div class="label">Consumer index.html body + head assets</div>
+              <pre id="consumer-html">
+&lt;link rel="stylesheet"
+  href="@foldkit-mde/editor/style.css" /&gt;
+&lt;script type="module" src="./main.ts"&gt;&lt;/script&gt;
+&lt;div id="root"&gt;&lt;/div&gt;</pre>
+              <p class="muted">
+                Bun resolves the CSS package export. Plugins are optional if the host does not need
+                JSON. Outside this workspace, distribution and compatible dependency setup still
+                need to be designed.
+              </p>
+            </div>
+          </div>
+        </div>
+        <details open>
+          <summary>B / Minimal main.ts using the actual host wiring</summary>
+          <div class="code">
+            <div class="label">
+              Adapted from apps/playground/src/main.ts / complete browser entry
+            </div>
+            <pre id="consumer-main">
+import { init, Model, type Message, update } from '@foldkit-mde/core'
+import { Synchronize, view as editorView } from '@foldkit-mde/editor'
+import { json } from '@foldkit-mde/plugins/json'
+import { Runtime } from 'foldkit'
+import type { Document, HtmlBuilder } from 'foldkit/html'
+
+const view = (model: Model, h: HtmlBuilder&lt;Message&gt;): Document => ({
+  title: 'My Markdown editor',
+  body: h.main([], [
+    editorView(model, h),
+    h.pre([], [JSON.stringify(json.project(model.source), null, 2)]),
+  ]),
+})
+
+Runtime.run(
+  Runtime.makeApplication({
+    Model,
+    init: () => ({ model: init('A long track.'), commands: [] }),
+    update: (model, message) => {
+      const next = update(model, message)
+
+      return {
+        model: next,
+        commands:
+          next.source !== model.source || next.mode !== model.mode
+            ? [Synchronize({
+                source: next.source,
+                mode: next.mode,
+                selection: next.selection,
+              })]
+            : [],
+      }
+    },
+    view,
+    container: document.getElementById('root'),
+  }),
+)</pre>
+          </div>
+        </details>
+        <div class="grid" style="margin-top: 20px">
+          <div class="card">
+            <h3>Consumer call tree</h3>
+            <pre>
+main.ts
+└── Runtime.run(makeApplication(...))
+    ├── init(source) → initial Model
+    ├── view(model, h)
+    │   ├── editorView → Observe mount
+    │   └── json.project(model.source)
+    └── update(model, message)
+        ├── core.update → next Model
+        └── changed source/mode?
+            └── Synchronize → browser DOM</pre>
+          </div>
+          <div class="card">
+            <h3>C / Supply a formatting operation today</h3>
+            <pre id="formatting-example">
+import { bold } from '@foldkit-mde/core'
+import type { FormattingPlugin } from '@foldkit-mde/core/plugins'
+
+export const boldPlugin: FormattingPlugin = {
+  id: 'bold',
+  apply: bold,
+}</pre>
+            <p>
+              Call <code>boldPlugin.apply(source, selection)</code>, then dispatch
+              <code>Applied</code> as in recipe A. The wrapper satisfies the contract; it does not
+              register a toolbar action.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="gbfm">
+        <div class="eyebrow">07 / Intended integration, not shipped integration</div>
+        <h2>gbfm supplies the product. The library supplies editing.</h2>
+        <div class="grid">
+          <div class="card host">
+            <h3>Host responsibilities</h3>
+            <ol>
+              <li>Load canonical Markdown and initialize editor state.</li>
+              <li>Translate child editor messages through the host's Foldkit update path.</li>
+              <li>
+                Observe changed source for draft recovery or saving. Model changes are not durable
+                saves.
+              </li>
+              <li>
+                Keep publishing, auth, uploads, Spotify, and network failures in host services.
+              </li>
+              <li>
+                Supply music/media syntax and visual adapters when the custom-component contract
+                exists.
+              </li>
+            </ol>
+            <p class="muted">
+              This list is the intended ownership, not working gbfm integration code. No gbfm files
+              or production behavior change in this repository.
+            </p>
+          </div>
+          <div class="card planned">
+            <h3>What must change before clean embedding?</h3>
+            <ul>
+              <li>
+                <strong>Instance identity:</strong> view and Synchronize use the fixed
+                <code>mde-surface</code> ID. Multiple editors are not supported.
+              </li>
+              <li>
+                <strong>Parent composition:</strong> the view is typed to core Message. A
+                child-message mapping/output boundary has not been packaged.
+              </li>
+              <li>
+                <strong>Plugin routing:</strong> replace direct bold wiring with host-selected
+                actions, without moving history into plugins.
+              </li>
+              <li>
+                <strong>Syntax coverage:</strong> headings, lists, links, music/media nodes, and
+                complete formatting semantics remain outside the editable subset.
+              </li>
+              <li>
+                <strong>Packaging:</strong> build/publish policy and an external consumer contract
+                remain undecided.
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p class="callout">
+          Keep source authoritative while adding plugin dispatch and instance-scoped mounting. Do
+          not introduce another JSON document store or a separate plugin runtime to solve embedding.
+        </p>
+      </section>
+
+      <section id="checks">
+        <div class="eyebrow">08 / What supports this design?</div>
+        <h2>The checks map to the boundaries too.</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Check location</th>
+                <th>What it proves</th>
+                <th>What it does not prove</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>core/src/editor.test.ts</code></td>
+                <td>
+                  Source preservation, formatting boundaries, source spans, selection restoration,
+                  and generated edit/undo/redo/mode histories.
+                </td>
+                <td>Browser input, a complete Markdown parser, or grouped undo.</td>
+              </tr>
+              <tr>
+                <td><code>plugins/src/json.test.ts</code></td>
+                <td>
+                  Asymmetric spans/marks, opaque directives, Schema round-trip, and recomputation
+                  after edits.
+                </td>
+                <td>JSON import semantics, hostile-input consistency, or custom nodes.</td>
+              </tr>
+              <tr>
+                <td><code>playground/test/browser-check.js</code></td>
+                <td>
+                  Single editing host, cross-paragraph replacement/joins, splits, shared history,
+                  synthetic composition/paste, live JSON, and empty state.
+                </td>
+                <td>Real OS IME, every browser, or long-document performance.</td>
+              </tr>
+              <tr>
+                <td><code>bun run precommit</code></td>
+                <td>
+                  Formatting, type-aware lint, Effect diagnostics, native TypeScript, core/plugin
+                  tests, and vendored tooling tests.
+                </td>
+                <td>Project-specific import boundaries or CI enforcement. Those remain gaps.</td>
+              </tr>
+              <tr>
+                <td><code>bun run build</code></td>
+                <td>The playground browser bundle builds.</td>
+                <td>Deployment, publication, or successful gbfm integration.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <details>
+          <summary>Source references and rat-stack choices</summary>
+          <div class="card">
+            <p>
+              Read at baseline <code>fe42ef0</code>: core <code>editor.ts</code>,
+              <code>bold.ts</code>, <code>markdown.ts</code>, <code>plugins.ts</code>; editor
+              <code>view.ts</code>, <code>surface.ts</code>, <code>document.ts</code>; plugins
+              <code>json.ts</code>; playground <code>main.ts</code>, <code>index.html</code>; each
+              package's exports.
+            </p>
+            <p>
+              The browser recipe adapts the checked playground wiring. Recipes A and B are authored
+              examples, not verbatim pinned excerpts. The document is a static explanation and can
+              drift as code changes.
+            </p>
+            <ul>
+              <li>
+                <a href="https://ratstack.sh/skills/write-a-wiki-page">Source-backed docs</a>: show
+                concrete paths, use short prose, and label authored examples.
+              </li>
+              <li>
+                <a href="https://ratstack.sh/lore/run-effect-at-the-boundary"
+                  >Runtime at the boundary</a
+                >: retain Foldkit's existing bridge; plugins do not create runtimes.
+              </li>
+              <li>
+                <a href="https://ratstack.sh/lore/schemas-define-the-boundary">Schema boundaries</a
+                >: declare formats and decode external values before they become edits.
+              </li>
+              <li>
+                <a href="https://ratstack.sh/lore/the-fence">The fence</a>: distinguish written
+                import policy from enforced compiler/lint checks.
+              </li>
+            </ul>
+            <p>
+              Alchemy belongs to future host infrastructure when needed. It has no role in core
+              editing or this static browser playground today.
+            </p>
+          </div>
+        </details>
+      </section>
+      <footer class="muted">
+        This is an implementation map and a consumer guide, not a claim of full WYSIWYG, a published
+        library, or completed gbfm integration.
+      </footer>
     </main>
   </body>
 </html>

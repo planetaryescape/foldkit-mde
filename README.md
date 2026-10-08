@@ -91,7 +91,7 @@ The Foldkit package owns raw and visual surfaces, input translation, DOM selecti
 
 Markdown source is authoritative. The small parser derives paragraph and inline spans. The continuous DOM adapter maps ranges across blocks, preserves unchanged block source and adjacent original separators, and translates structural edits into changed source. It pauses input dispatch during composition. Foldkit mounts own listener cleanup through Effect's scoped acquisition. The playground executes synchronization commands through its existing runtime boundary.
 
-[Architecture visual](docs/architecture.html) shows current ownership and explicitly marks planned capabilities. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection) → transaction`. The host selects implementations. JSON is implemented in `packages/plugins`; bold remains directly wired until dynamic registration is added.
+[Architecture and package usage](docs/architecture.html) maps package imports to the actual file tree, traces browser input through the reducer and synchronization command, and distinguishes implemented contracts from planned capabilities. It includes [headless and Foldkit consumer recipes](docs/architecture.html#usage), the state/message rules, and the gaps that remain before gbfm embedding. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection) → transaction`. The host selects implementations. JSON is implemented in `packages/plugins`; bold remains directly wired until dynamic registration is added.
 
 Plugin responsibilities differ:
 

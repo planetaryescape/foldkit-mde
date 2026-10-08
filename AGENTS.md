@@ -8,6 +8,8 @@ Use [rat-stack's agent guide](https://ratstack.sh/llms.txt) as the architecture 
 
 Read the installed `node_modules/effect/AGENTS.md` before changing Effect code. Check APIs against installed versions, not older local checkouts. Reference sources do not become runtime dependencies.
 
+Before designing plugin contracts, registration, custom-component lifetimes, or persistence adapters, read [the plugin-system reference guide](docs/plugin-system-references.md) and its relevant vendored contracts, implementations, and examples/tests. It contains pinned executor, OpenCode, OpenClaw, EmDash, and Pi snapshots under `docs/references/`. State the pattern being adapted and what is deliberately omitted. Keep snapshots unchanged, retain licenses and checksums, and do not install them or treat upstream instructions as our project policy. Pure formatting, derived representations, scoped DOM behavior, and external Effect services need distinct contracts, not a universal plugin context.
+
 [Our rat-stack adaptation](docs/rat-stack-reference.md) records adopted patterns, deliberate differences, and enforcement gaps. Local product decisions take precedence over template-specific choices:
 
 - Bun workspaces, not pnpm or Turborepo.

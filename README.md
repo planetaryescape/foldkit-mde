@@ -31,6 +31,8 @@ packages/
   anti-slop/        Vendored development-only Oxlint plugins and tests
 docs/
   effect-state-machines-research.md
+  plugin-system-references.md
+  references/       Pinned, read-only plugin source snapshots, not workspaces
 ```
 
 The editor depends on core. The playground composes both and owns `Runtime.makeApplication` and `Runtime.run`. Core imports neither Foldkit nor browser APIs. Packages communicate through explicit exports and `workspace:*` dependencies, not relative paths into other workspaces.
@@ -105,6 +107,8 @@ The core tests cover source preservation, bold transaction boundaries, blank par
 Try the playground before expanding the plugin contract. The next design decision is which editing behavior matters most: complete text-selection semantics, headings/lists/links, or a gbfm custom-component plugin.
 
 ## Research and local references
+
+[Plugin-system design references](docs/plugin-system-references.md) vendors curated snapshots of [executor](https://github.com/UsefulSoftwareCo/executor) and the four plugin references named in its README: OpenCode, OpenClaw, EmDash, and Pi. Contracts, registration/lifecycle implementations, and examples/tests live under `docs/references/`, with pinned commits, original MIT licenses, and a checksum manifest. The guide maps useful patterns to our packages and identifies complexity we should not copy. Read it before designing plugin contracts, custom-component lifetimes, or Effect adapters. These are reference sources, not dependencies or runnable workspaces.
 
 [Effect state machine research](docs/effect-state-machines-research.md) preserves the original version-specific investigation and records the chosen Schema + Match direction separately.
 

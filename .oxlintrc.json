@@ -143,6 +143,7 @@
     "**/*.generated.ts",
     "**/routeTree.gen.ts",
     "packages/anti-slop/**",
+    "docs/references/**",
     ".amp/in/**"
   ]
 }

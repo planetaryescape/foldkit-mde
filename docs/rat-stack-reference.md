@@ -15,6 +15,8 @@ Checked on 2026-10-08. Start with [llms.txt](https://ratstack.sh/llms.txt), [AGE
 
 For future plugin design, share a contract and transformation between raw and visual editing. Do not copy rat-stack's server capability/projection framework into a browser-only library without a concrete need.
 
+Complement these principles with [the vendored plugin-system guide](plugin-system-references.md). Executor provides typed adapter and transaction-cleanup references; OpenCode V2 provides Effect-scoped contribution lifetimes; OpenClaw separates registration from execution; EmDash returns editor patches; Pi exposes a small Markdown transform contract. Read the pinned source for the responsibility being designed, not the whole upstream application. These references do not replace our Schema + Match reducer, Foldkit runtime, or dependency limits.
+
 ## Deliberate differences
 
 - **Bun workspaces:** retain the user's chosen package manager and workspace layout. No pnpm or Turborepo migration.

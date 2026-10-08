@@ -26,6 +26,7 @@
     "**/package.json",
     "**/tsconfig*.json",
     "packages/anti-slop/**",
+    "docs/references/**",
     ".amp/in/**",
     "bun.lock"
   ]

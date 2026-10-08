@@ -63,3 +63,80 @@
     0.75rem / 1.5 system-ui,
     sans-serif;
 }
+
+.mde-toolbar,
+.mde-modes,
+.mde-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mde-toolbar {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--mde-border);
+}
+
+.mde button {
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  color: inherit;
+  background: transparent;
+  font:
+    0.8rem / 1.2 system-ui,
+    sans-serif;
+}
+
+.mde button:hover:not(:disabled),
+.mde button.is-active {
+  background: #e5eadf;
+  border-color: var(--mde-border);
+}
+
+.mde button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.mde button:focus-visible,
+.mde-paragraph:focus-visible {
+  outline: 2px solid #55735b;
+  outline-offset: 4px;
+}
+
+.mde-paragraph {
+  min-height: 1.8em;
+  margin-bottom: 1.5rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    1.15rem / 1.8 Georgia,
+    serif;
+}
+
+.mde-paragraph:empty::before {
+  content: 'Start writing...';
+  color: var(--mde-muted);
+  pointer-events: none;
+}
+
+.mde-protected {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px dashed var(--mde-border);
+  background: #f0f1ea;
+}
+
+.mde-protected pre {
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--mde-muted);
+  font:
+    0.8rem / 1.6 ui-monospace,
+    monospace;
+}

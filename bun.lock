@@ -44,6 +44,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@foldkit-mde/core": "workspace:*",
+        "effect": "catalog:",
         "foldkit": "catalog:",
       },
     },

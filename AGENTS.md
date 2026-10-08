@@ -24,7 +24,7 @@ Read the installed `node_modules/effect/AGENTS.md` before changing Effect code. 
 - Formatting plugins return pure transactions. Rendering and custom-component plugins use explicit contracts. Prove one operation before introducing a general plugin framework.
 - Saving, publishing, and gbfm-specific integrations belong to the host. Do not modify gbfm without a separate request.
 
-Before changing editor state, name its authoritative representation, derived views, and writer. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current implementation only edits source; do not claim WYSIWYG or plugin support yet.
+Before changing editor state, name its authoritative representation, derived views, and writer. `Model.source` is authoritative; parsing and DOM content are derived, and `update` owns edits and history. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current visual subset is paragraphs and bold, not full CommonMark/GFM or a registered plugin engine.
 
 Use Effect for typed failures, asynchronous work, services, and resource lifetimes. Keep pure transformations pure. Execute Effects through the host's existing runtime boundary, not inside plugins or reducers. Decode external values with Schema at their boundary instead of using assertions.
 
@@ -35,5 +35,7 @@ Run `bun run precommit` and `bun run build` before reporting readiness. `bun ins
 Never bypass hooks or weaken checks to make a change pass. Keep local commits atomic and message-only, with no attribution trailers or co-authors. Do not push or deploy without explicit approval.
 
 Choose tests that detect plausible broken behavior. For stateful editing, check command histories against an independent model. For domain rules, prefer generated inputs where they add coverage; demonstrate that an intentional defect fails the test before trusting it. Keep browser integration tests for selection, IME, and undo behavior.
+
+With the playground server running, `bun run --filter @foldkit-mde/playground test:browser` uses a separately installed agent-browser to check the DOM adapter. This is separate from precommit. Synthetic composition events do not prove real operating-system IME behavior.
 
 When a pattern needs enforcement, prefer the smallest compiler, lint, or test check that rejects it. Distinguish written policy from verified enforcement. The current fence does not yet include project-specific import-boundary lint rules or CI.

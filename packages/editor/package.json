@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@foldkit-mde/core": "workspace:*",
+    "effect": "catalog:",
     "foldkit": "catalog:"
   }
 }

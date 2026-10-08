@@ -33,14 +33,14 @@ The scaffold currently follows the intended dependency direction, but no project
 
 The imported gist relaxes some type-safety rules in test files and permits TypeScript suppression comments. These exemptions are broader than rat-stack's targeted-override policy. No blanket claim of equivalent enforcement is justified. Tighten them when adopting the corresponding tests or rules, without rewriting vendored source.
 
-The two current core tests cover source replacement and clearing. They are not model-based coverage of selection, formatting, history, or asynchronous lifecycle behavior. Those behaviors are not implemented yet.
+Core tests now cover source preservation, formatting boundaries, selection mapping/restoration, empty paragraphs, and generated edit/undo/redo/mode histories against an independent model. Deliberately retaining redo after an edit failed the history property and shrank to `edit → undo → edit`; the defect was removed. A separate browser check covers formatting, shared history, paragraph splitting, synthetic composition lifecycle, safe paste, and protected source cards. Real operating-system IME behavior, cross-paragraph editing, and general plugin registration remain unverified or unimplemented.
 
 ## Workflow for subsequent work
 
 1. Search the reference guide for the behavior being changed. Read the relevant rules and skills before coding.
-2. Name the authoritative state, derived representations, and writer. For the current scaffold, `Model.source` is authoritative and `update` replaces it.
+2. Name the authoritative state, derived representations, and writer. `Model.source` is authoritative, parsing and DOM content are derived, and `update` owns edits and history.
 3. Keep domain transformations in core and external behavior at the adapter boundary.
 4. Identify the invariant and its check. Do not add a gate that only creates process.
 5. Run the local checks and inspect affected browser behavior. Report violations, intentional differences, and unverified claims separately.
 
-For the first WYSIWYG slice, the important invariant is source preservation: switching modes or applying bold must not rewrite unrelated Markdown. A single core transaction path should own both modes and undo. The source-span model in the README remains a proposal until we prove that slice.
+The first visual editing slice uses source spans: switching modes does not rewrite Markdown, and formatting replaces only the selected range. Visual paragraph edits replace their block without touching surrounding source. Both modes share core history. Browser listeners are acquired and released with Effect through Foldkit mounts, and synchronization runs at the host runtime boundary. Bold has a pure transaction contract; this does not yet establish a general plugin API.

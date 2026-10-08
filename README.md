@@ -17,6 +17,8 @@ The playground listens at <http://127.0.0.1:3017>. Its static build goes to `app
 
 Browser hot reload is disabled because Foldkit uses Vite-specific `import.meta.hot` methods that Bun does not implement. Restart the server and refresh the browser after source changes.
 
+With the server running and `agent-browser` installed separately, run `bun run --filter @foldkit-mde/playground test:browser`. This checks the real browser adapter without adding a browser library to the project. Composition and paste events in this check are synthetic; a real operating-system IME still needs manual testing.
+
 ## Bun workspaces
 
 ```text
@@ -34,8 +36,8 @@ The editor depends on core. The playground composes both and owns `Runtime.makeA
 
 There is one root `bun.lock`. The root catalog pins runtime versions for all workspaces. All packages are private; these TypeScript source exports are not yet a publication pipeline:
 
-- `@foldkit-mde/core`: Model, Message, `init`, and `update`.
-- `@foldkit-mde/editor`: Foldkit `view`.
+- `@foldkit-mde/core`: Model, Message, selection, transactions, `init`, `update`, `bold`, and source-span parsing/mapping.
+- `@foldkit-mde/editor`: Foldkit `view` and `Synchronize` command.
 - `@foldkit-mde/editor/style.css`: editor styles.
 
 Only Foldkit and Effect are external application dependencies. Foldkit requires `@effect/platform-browser` and `parse5`, which also brings `entities`; Bun resolves those peer/transitive dependencies. The additional packages are development tooling, not editor runtime dependencies.
@@ -68,7 +70,11 @@ Anti-slop lives in `packages/anti-slop`, not a top-level tools directory. Its im
 4. Keep a core with testable plugin behavior. Bold/italic, custom components, and Markdown-to-HTML are plugin capabilities rather than hardcoded host features.
 5. Keep saving, publishing, draft recovery, and application-specific integrations in the host.
 
-The current scaffold implements only verbatim source editing and a character count. It does not yet implement WYSIWYG, a parser, plugin registration, selection-aware formatting, or history. The tests prove source preservation, immutable replacement, and clearing.
+The playground implements the first editing slice: editable paragraphs and `**bold**`, raw Markdown, selection-aware bold toggling, paragraph breaks, and shared undo/redo. Select plain text to apply bold, or the full contents of a bold span to remove it. Partial selections inside bold and mixed formatting selections are not supported yet. Bold is a pure transaction-producing operation, not a registered plugin engine.
+
+Unsupported blocks, including gbfm music directives, appear as protected source cards. **Edit source** opens raw Markdown at that block. Mode switches do not rewrite the document. The visual adapter renders text nodes and `strong` elements, never source HTML, and pastes plain text only.
+
+This is not a full CommonMark/GFM editor. Cross-paragraph selections, joining paragraphs with Backspace/Delete, full formatting semantics, history coalescing, multiple editor instances, persistence, and plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
 
 ### Architecture to work toward
 
@@ -76,7 +82,7 @@ Core owns document state, selection, transactions, history, and interaction tran
 
 The Foldkit package owns raw and visual surfaces, input translation, DOM selection, focus, composition, and command execution. Both surfaces must dispatch edits through the same transaction path and history, rather than maintain independent documents. The host registers plugins and observes changes.
 
-Markdown parsing/serialization and source mapping need an explicit contract before WYSIWYG editing. A proposed starting point is preserving source text and syntax spans, so visual edits change the intended region without rewriting unrelated Markdown. Unsupported syntax should remain intact; a mode switch must not silently discard it. This proposal is not implemented.
+Markdown source is authoritative. The small parser derives paragraph and inline spans; visual edits replace only the affected block, leaving surrounding source intact. The DOM adapter maps selections between visible text and source offsets, and pauses input dispatch during composition. Foldkit mounts own listener cleanup through Effect's scoped acquisition. The playground executes synchronization commands through its existing runtime boundary.
 
 Plugin responsibilities differ:
 
@@ -84,9 +90,9 @@ Plugin responsibilities differ:
 - Markdown-to-HTML rendering consumes a document and returns output or diagnostics. HTML safety is part of that contract.
 - Custom components register syntax and visual editing behavior. gbfm can supply music/media integrations without putting Spotify, uploads, or publishing in core.
 
-We should prove these contracts with one formatting operation before building a general plugin engine. A useful first vertical slice is paragraph text plus bold, editable in both modes, with round-trip preservation, selection mapping, undo, and IME behavior checked. It must not be presented as full CommonMark/GFM support.
+The core tests cover source preservation, bold transaction boundaries, blank paragraphs, selection restoration, and generated edit/undo/redo/mode histories against an independent model. The history property was mutation-checked: deliberately retaining redo after an edit failed and shrank to `edit → undo → edit`. The defect was then removed.
 
-The next design question is the initial Markdown subset and how unsupported blocks behave in the visual surface. Editable WYSIWYG itself is already a requirement, not an open choice.
+Try the playground before expanding the plugin contract. The next design decision is which editing behavior matters most: complete text-selection semantics, headings/lists/links, or a gbfm custom-component plugin.
 
 ## Research and local references
 

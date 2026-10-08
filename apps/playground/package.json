@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun src/server.ts",
-    "build": "bun build src/index.html --outdir dist --target browser --minify"
+    "build": "bun build src/index.html --outdir dist --target browser --minify",
+    "test:browser": "agent-browser --session mde-test open http://127.0.0.1:3017 && agent-browser --session mde-test eval --stdin < test/browser-check.js"
   },
   "dependencies": {
     "@foldkit-mde/core": "workspace:*",

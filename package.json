@@ -1,0 +1,19 @@
+{
+  "name": "foldkit-mde",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "workspaces": {
+    "packages": ["apps/*", "packages/*"],
+    "catalog": {
+      "effect": "4.0.0",
+      "foldkit": "0.167.0"
+    }
+  },
+  "scripts": {
+    "dev": "bun run --filter @foldkit-mde/playground dev",
+    "build": "bun run --filter @foldkit-mde/playground build",
+    "test": "bun run --workspaces --if-present test"
+  }
+}

@@ -1,0 +1,52 @@
+:root {
+  color: #252d28;
+  background: #e9ede5;
+  font-family: system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+body {
+  margin: 0;
+}
+
+.playground {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 5vw, 4rem);
+}
+
+.playground-header {
+  margin-bottom: 2.5rem;
+}
+
+.eyebrow {
+  color: #49634d;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+
+h1 {
+  margin: 1.2rem 0 0.8rem;
+  font-family: Georgia, serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.intro {
+  color: #616a63;
+  font-size: 0.95rem;
+}
+
+.playground-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1.5rem;
+  color: #616a63;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}

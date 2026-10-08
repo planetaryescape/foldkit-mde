@@ -1,0 +1,15 @@
+{
+  "name": "@foldkit-mde/playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun src/server.ts",
+    "build": "bun build src/index.html --outdir dist --target browser --minify"
+  },
+  "dependencies": {
+    "@foldkit-mde/core": "workspace:*",
+    "@foldkit-mde/editor": "workspace:*",
+    "foldkit": "catalog:"
+  }
+}

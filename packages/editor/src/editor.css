@@ -1,0 +1,65 @@
+.mde {
+  --mde-paper: #fbfaf6;
+  --mde-ink: #252d28;
+  --mde-muted: #616a63;
+  --mde-border: #d8ddd3;
+  color: var(--mde-ink);
+  background: var(--mde-paper);
+  border: 1px solid var(--mde-border);
+}
+
+.mde-canvas {
+  display: block;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.mde-label {
+  display: block;
+  margin-bottom: 1.5rem;
+  color: var(--mde-muted);
+  font:
+    0.75rem / 1.5 system-ui,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mde-source {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 24rem;
+  resize: vertical;
+  padding: 0.5rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font:
+    0.95rem / 1.9 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  tab-size: 2;
+}
+
+.mde-source:focus-visible {
+  outline: 2px solid #55735b;
+  outline-offset: 6px;
+}
+
+.mde-source::placeholder {
+  color: var(--mde-muted);
+}
+
+.mde-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--mde-border);
+  color: var(--mde-muted);
+  font:
+    0.75rem / 1.5 system-ui,
+    sans-serif;
+}

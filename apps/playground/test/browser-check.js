@@ -38,7 +38,7 @@ async function checkEditor() {
   }
 
   const select = (element, node, start, end = start) => {
-    element.focus()
+    element.closest('.mde-visual').focus()
     const range = document.createRange()
     range.setStart(node, start)
     range.setEnd(node, end)
@@ -77,7 +77,8 @@ async function checkEditor() {
   )
   await until(() => source() === 'One\n\n\n\nTwo')
   assert(
-    document.activeElement.dataset.start === '5',
+    window.getSelection().anchorNode.parentElement.closest('.mde-paragraph')?.dataset.start ===
+      '5' || window.getSelection().anchorNode.dataset?.start === '5',
     'Enter must focus the inserted empty paragraph',
   )
 
@@ -93,7 +94,8 @@ async function checkEditor() {
   )
   await until(() => source() === 'A **lon**\n\n**ger** track.')
   assert(
-    document.activeElement.textContent === 'ger track.',
+    window.getSelection().anchorNode.parentElement.closest('.mde-paragraph').textContent ===
+      'ger track.',
     'Splitting bold must keep an editable destination',
   )
   assert(
@@ -155,7 +157,56 @@ async function checkEditor() {
     'Empty paragraph must accept input',
   )
 
-  return 'Passed: formatting, cross-mode history, paragraph splits, composition lifecycle, safe paste, protected source, empty document.'
+  await setSource('One longer\n\nTwo shorter\n\n::music{id="keep"}\n')
+  assert(
+    document.querySelectorAll('[contenteditable="true"]').length === 1,
+    'Visual mode must have one editing host',
+  )
+  const paragraphs = document.querySelectorAll('.mde-paragraph')
+  const across = document.createRange()
+  document.querySelector('.mde-visual').focus()
+  across.setStart(paragraphs[0].firstChild, 4)
+  across.setEnd(paragraphs[1].firstChild, 4)
+  window.getSelection().removeAllRanges()
+  window.getSelection().addRange(across)
+  document.dispatchEvent(new Event('selectionchange'))
+  await new Promise((resolve) => requestAnimationFrame(resolve))
+  document.execCommand('insertText', false, 'new ')
+  await until(() => source() === 'One new shorter\n\n::music{id="keep"}\n')
+  await until(
+    () =>
+      JSON.parse(document.querySelector('[aria-label="JSON document"]').textContent).source ===
+      source(),
+  )
+  await action('Undo')
+  await until(() => source() === 'One longer\n\nTwo shorter\n\n::music{id="keep"}\n')
+  await mode('Markdown')
+  assert(
+    document.querySelector('textarea').selectionStart === 4 &&
+      document.querySelector('textarea').selectionEnd === 16,
+    'Undo must restore cross-paragraph selection',
+  )
+
+  await setSource('First\n\nSecond')
+  const second = document.querySelectorAll('.mde-paragraph')[1]
+  select(second, second.firstChild, 0)
+  document.execCommand('delete')
+  await until(() => source() === 'FirstSecond')
+  await action('Undo')
+  await until(() => source() === 'First\n\nSecond')
+  const preceding = document.querySelector('.mde-paragraph')
+  select(preceding, preceding.firstChild, 5)
+  document.execCommand('forwardDelete')
+  await until(() => source() === 'FirstSecond')
+  const whole = document.createRange()
+  whole.selectNodeContents(document.querySelector('.mde-visual'))
+  window.getSelection().removeAllRanges()
+  window.getSelection().addRange(whole)
+  document.execCommand('delete')
+  await until(() => source() === '')
+  await setSource('')
+
+  return 'Passed: one editing host, cross-paragraph replacement and undo, JSON projection, formatting, splits, composition, safe paste, protected source, empty document.'
 }
 
 // oxlint-disable-next-line typescript/no-floating-promises -- agent-browser awaits the final expression and fails on rejection.

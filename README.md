@@ -27,6 +27,7 @@ apps/
 packages/
   core/             Effect Schema Model/Messages and pure Match reducer
   editor/           Foldkit view and editor stylesheet
+  plugins/          Built-in representation plugins, starting with JSON
   anti-slop/        Vendored development-only Oxlint plugins and tests
 docs/
   effect-state-machines-research.md
@@ -39,6 +40,8 @@ There is one root `bun.lock`. The root catalog pins runtime versions for all wor
 - `@foldkit-mde/core`: Model, Message, selection, transactions, `init`, `update`, `bold`, and source-span parsing/mapping.
 - `@foldkit-mde/editor`: Foldkit `view` and `Synchronize` command.
 - `@foldkit-mde/editor/style.css`: editor styles.
+- `@foldkit-mde/core/plugins`: formatting and representation contracts.
+- `@foldkit-mde/plugins/json`: versioned JSON Schema and a pure document projection.
 
 Only Foldkit and Effect are external application dependencies. Foldkit requires `@effect/platform-browser` and `parse5`, which also brings `entities`; Bun resolves those peer/transitive dependencies. The additional packages are development tooling, not editor runtime dependencies.
 
@@ -74,7 +77,11 @@ The playground implements the first editing slice: editable paragraphs and `**bo
 
 Unsupported blocks, including gbfm music directives, appear as protected source cards. **Edit source** opens raw Markdown at that block. Mode switches do not rewrite the document. The visual adapter renders text nodes and `strong` elements, never source HTML, and pastes plain text only.
 
-This is not a full CommonMark/GFM editor. Cross-paragraph selections, joining paragraphs with Backspace/Delete, full formatting semantics, history coalescing, multiple editor instances, persistence, and plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
+Visual mode is now one continuous editing host. Paragraphs are structural children, not separate textboxes. Native cursor movement, cross-paragraph selection/replacement, and Backspace/Delete joins work through that host and share core history. Unsupported source cards are non-editable nodes; structural selection can remove a whole card, while editing its contents requires raw mode.
+
+Open **JSON representation** below the editor to inspect the built-in plugin output. It includes exact source, paragraph nodes, bold marks, source spans, and opaque raw nodes. JSON is a read-only projection, not another authoritative document. JSON import/editing is not implemented; it must validate its format and produce core transactions when added.
+
+This is not a full CommonMark/GFM editor. Full formatting semantics, history coalescing, multiple editor instances, persistence, and dynamic plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
 
 ### Architecture to work toward
 
@@ -82,11 +89,14 @@ Core owns document state, selection, transactions, history, and interaction tran
 
 The Foldkit package owns raw and visual surfaces, input translation, DOM selection, focus, composition, and command execution. Both surfaces must dispatch edits through the same transaction path and history, rather than maintain independent documents. The host registers plugins and observes changes.
 
-Markdown source is authoritative. The small parser derives paragraph and inline spans; visual edits replace only the affected block, leaving surrounding source intact. The DOM adapter maps selections between visible text and source offsets, and pauses input dispatch during composition. Foldkit mounts own listener cleanup through Effect's scoped acquisition. The playground executes synchronization commands through its existing runtime boundary.
+Markdown source is authoritative. The small parser derives paragraph and inline spans. The continuous DOM adapter maps ranges across blocks, preserves unchanged block source and adjacent original separators, and translates structural edits into changed source. It pauses input dispatch during composition. Foldkit mounts own listener cleanup through Effect's scoped acquisition. The playground executes synchronization commands through its existing runtime boundary.
+
+[Architecture visual](docs/architecture.html) shows current ownership and explicitly marks planned capabilities. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection) → transaction`. The host selects implementations. JSON is implemented in `packages/plugins`; bold remains directly wired until dynamic registration is added.
 
 Plugin responsibilities differ:
 
 - Formatting transforms document/selection into a transaction.
+- JSON projects source into versioned, Schema-defined nodes and marks without mutating the document.
 - Markdown-to-HTML rendering consumes a document and returns output or diagnostics. HTML safety is part of that contract.
 - Custom components register syntax and visual editing behavior. gbfm can supply music/media integrations without putting Spotify, uploads, or publishing in core.
 

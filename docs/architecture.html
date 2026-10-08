@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Foldkit MDE architecture</title>
+    <style>
+      :root {
+        color: #252d28;
+        background: #e9ede5;
+        font:
+          15px/1.6 system-ui,
+          sans-serif;
+      }
+      body {
+        margin: 0;
+      }
+      main {
+        max-width: 1080px;
+        margin: auto;
+        padding: clamp(20px, 5vw, 64px);
+      }
+      h1,
+      h2 {
+        font-family: Georgia, serif;
+        font-weight: 400;
+        line-height: 1.15;
+      }
+      h1 {
+        font-size: clamp(32px, 5vw, 54px);
+        margin: 12px 0;
+      }
+      h2 {
+        font-size: 23px;
+        margin: 0 0 10px;
+      }
+      .eyebrow,
+      .label {
+        color: #49634d;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .intro {
+        max-width: 720px;
+        color: #616a63;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr auto 1.25fr auto 1fr;
+        align-items: center;
+        gap: 16px;
+        margin: 36px 0 24px;
+      }
+      .box {
+        padding: 24px;
+        background: #fbfaf6;
+        border: 1px solid #d8ddd3;
+      }
+      .core {
+        border: 2px solid #55735b;
+      }
+      .arrow {
+        color: #49634d;
+        font-size: 26px;
+        text-align: center;
+      }
+      p {
+        margin: 8px 0;
+      }
+      code {
+        font:
+          12px/1.6 ui-monospace,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      .plugins {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+      .plugins .box {
+        padding: 18px;
+      }
+      .planned {
+        border-style: dashed;
+        background: transparent;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        color: #49634d;
+        background: #e5eadf;
+        padding: 2px 7px;
+        margin-bottom: 12px;
+      }
+      .planned .badge {
+        background: #e1e4dd;
+        color: #616a63;
+      }
+      .rule {
+        border-top: 1px solid #cbd2c5;
+        margin-top: 30px;
+        padding-top: 22px;
+      }
+      .notes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      .muted {
+        color: #616a63;
+        font-size: 13px;
+      }
+      @media (max-width: 800px) {
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        .arrow {
+          transform: rotate(90deg);
+        }
+        .plugins,
+        .notes {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 480px) {
+        .plugins,
+        .notes {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Foldkit / Effect / one document</div>
+      <h1>One source. Different ways to work with it.</h1>
+      <p class="intro">
+        Visual editing and raw Markdown write to the same core. JSON is a representation plugin, not
+        another document to keep in sync.
+      </p>
+      <section class="flow" aria-label="Editing and representation data flow">
+        <div class="box">
+          <div class="label">packages/editor</div>
+          <h2>Editing surfaces</h2>
+          <p>One continuous visual editing host</p>
+          <p>Raw Markdown textarea</p>
+          <p class="muted">DOM ranges, paste, composition and focus stay here.</p>
+        </div>
+        <div class="arrow" aria-label="Messages and derived rendering">⇄</div>
+        <div class="box core">
+          <div class="label">packages/core</div>
+          <h2>The authority</h2>
+          <p><code>source + selection + mode + history</code></p>
+          <p>Schema messages → Match reducer</p>
+          <p class="muted">
+            One writer: <code>update</code>. Parsed blocks and inline marks are derived from source.
+          </p>
+        </div>
+        <div class="arrow" aria-label="Read-only projection">→</div>
+        <div class="box">
+          <div class="label">packages/plugins</div>
+          <h2>Representations</h2>
+          <p><code>project(source) → output</code></p>
+          <p class="muted">The host chooses the plugin. A projection cannot mutate editor state.</p>
+        </div>
+      </section>
+      <p class="label">Plugin roles are different contracts, not one giant hook system</p>
+      <section class="plugins" aria-label="Plugin capabilities and delivery status">
+        <div class="box">
+          <span class="badge">IMPLEMENTED</span>
+          <h2>JSON</h2>
+          <p>Versioned Schema output: source, paragraph nodes, bold marks and opaque raw blocks.</p>
+          <code>Representation&lt;JsonDocument&gt;</code>
+        </div>
+        <div class="box">
+          <span class="badge">CONTRACT + BOLD OPERATION</span>
+          <h2>Formatting</h2>
+          <p>Source and selection in. A transaction out. Core owns applying it and undo.</p>
+          <code>FormattingPlugin</code>
+          <p class="muted">
+            Bold is still wired directly. Dynamic registration is next, not implemented.
+          </p>
+        </div>
+        <div class="box planned">
+          <span class="badge">PLANNED</span>
+          <h2>HTML</h2>
+          <p>
+            Another representation plugin. Its contract must define escaping and trusted HTML
+            policy.
+          </p>
+          <code>Representation&lt;HtmlOutput&gt;</code>
+        </div>
+        <div class="box planned">
+          <span class="badge">PLANNED</span>
+          <h2>Custom components</h2>
+          <p>
+            Plugin syntax plus a visual node adapter. gbfm can supply music cards without moving
+            Spotify into core.
+          </p>
+          <p class="muted">Current fallback: an opaque source card.</p>
+        </div>
+      </section>
+      <section class="rule notes">
+        <div>
+          <h2>What happens when you type?</h2>
+          <p>
+            Browser input → adapter reads changed DOM → source + selection message → core updates
+            history → Foldkit synchronizes the document → JSON is projected again.
+          </p>
+          <p class="muted">
+            Unchanged blocks and adjacent original separators retain their source. Structural edits
+            intentionally change the affected structure.
+          </p>
+        </div>
+        <div>
+          <h2>Who owns the hard parts?</h2>
+          <ul>
+            <li>Effect: schemas, scoped listener lifetimes and runtime work.</li>
+            <li>Foldkit: messages, rendering and the application loop.</li>
+            <li>Host: plugin choice, saving, publishing and future Alchemy infrastructure.</li>
+            <li>
+              Fence: strict types, lint, generated history tests, browser checks and commit hooks.
+            </li>
+          </ul>
+        </div>
+      </section>
+      <p class="rule muted">
+        Current JSON is export-only. JSON editing/import must validate a declared format and produce
+        a transaction, never write a separate state store. Full CommonMark, dynamic plugin
+        registration and multi-editor embedding remain future work.
+      </p>
+    </main>
+  </body>
+</html>

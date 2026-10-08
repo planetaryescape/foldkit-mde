@@ -13,7 +13,7 @@ export interface Block {
   readonly inlines: ReadonlyArray<Inline>
 }
 
-const inlineText = (source: string, offset: number): ReadonlyArray<Inline> => {
+export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> => {
   const result: Array<Inline> = []
   let cursor = 0
 
@@ -60,7 +60,7 @@ export const parse = (source: string): ReadonlyArray<Block> => {
   const append = () => {
     if (end <= start) return
     const text = source.slice(start, end).replace(/[\r\n]+$/, '')
-    const inlines = inlineText(text, start)
+    const inlines = parseInlines(text, start)
     const plain = text.replace(/\*\*[^*\r\n]+\*\*/g, '')
 
     const editable =
@@ -88,7 +88,7 @@ export const parse = (source: string): ReadonlyArray<Block> => {
           end: line.index,
           source: '',
           editable: true,
-          inlines: inlineText('', line.index),
+          inlines: parseInlines('', line.index),
         })
       }
 
@@ -108,7 +108,7 @@ export const parse = (source: string): ReadonlyArray<Block> => {
       end: source.length,
       source: '',
       editable: true,
-      inlines: inlineText('', source.length),
+      inlines: parseInlines('', source.length),
     })
 
   return blocks

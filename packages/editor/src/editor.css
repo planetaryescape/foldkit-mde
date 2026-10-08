@@ -103,14 +103,14 @@
 }
 
 .mde button:focus-visible,
-.mde-paragraph:focus-visible {
+.mde-visual:focus-visible {
   outline: 2px solid #55735b;
   outline-offset: 4px;
 }
 
 .mde-paragraph {
   min-height: 1.8em;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font:
@@ -118,10 +118,14 @@
     serif;
 }
 
-.mde-paragraph:empty::before {
+.mde-visual > .mde-paragraph:only-child:has(> br:only-child)::before {
   content: 'Start writing...';
   color: var(--mde-muted);
   pointer-events: none;
+}
+
+.mde-visual {
+  min-height: 18rem;
 }
 
 .mde-protected {

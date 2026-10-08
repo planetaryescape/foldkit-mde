@@ -4,7 +4,7 @@ import { bold, Selection, Transaction } from './bold'
 
 export { bold, Selection, Transaction } from './bold'
 
-export { parse, sourceOffset, visualOffset, type Block } from './markdown'
+export { parse, parseInlines, sourceOffset, visualOffset, type Block } from './markdown'
 
 export const Mode = Schema.Literals(['Visual', 'Markdown'])
 

@@ -1,141 +1,34 @@
-import {
-  Message,
-  Mode,
-  Selection,
-  parse,
-  sourceOffset,
-  visualOffset,
-  type Block,
-  type Model,
-} from '@foldkit-mde/core'
+import { Message, Mode, Selection, type Model } from '@foldkit-mde/core'
 import { Effect, Match, Queue, Schema, Stream } from 'effect'
 import * as Command from 'foldkit/command'
 import * as Mount from 'foldkit/mount'
 
+import { read, renderVisual, split } from './document'
+
 const fields = { source: Schema.String, mode: Mode, selection: Selection }
 
 type Surface = Pick<Model, 'source' | 'mode' | 'selection'>
-
-const serialize = (node: Node): string => {
-  if (node instanceof Text) return node.data.replace(/\u00a0/g, ' ')
-
-  if (node instanceof HTMLBRElement) return '\n'
-  const text = Array.from(node.childNodes, serialize).join('')
-
-  if (node instanceof HTMLElement && (node.tagName === 'STRONG' || node.tagName === 'B'))
-    return text ? `**${text}**` : ''
-
-  if (node instanceof HTMLDivElement) return `\n${text}`
-
-  return text
-}
-
-const offset = (element: Element, node: Node, position: number): number => {
-  const range = document.createRange()
-  range.selectNodeContents(element)
-  range.setEnd(node, position)
-
-  return range.toString().length
-}
-
-const selected = (element: Element, block: Block): Selection | undefined => {
-  const selection = window.getSelection()
-
-  if (!selection || selection.rangeCount === 0) return undefined
-  const range = selection.getRangeAt(0)
-
-  if (!element.contains(range.startContainer) || !element.contains(range.endContainer))
-    return undefined
-
-  return {
-    start: sourceOffset(block, offset(element, range.startContainer, range.startOffset)),
-    end: sourceOffset(
-      block,
-      offset(element, range.endContainer, range.endOffset),
-      range.collapsed ? 'forward' : 'backward',
-    ),
-  }
-}
-
-const locate = (element: Element, position: number): readonly [Node, number] => {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
-  let remaining = position
-  let node = walker.nextNode()
-
-  while (node) {
-    const length = node.textContent?.length ?? 0
-
-    if (remaining <= length) return [node, remaining]
-    remaining -= length
-    node = walker.nextNode()
-  }
-
-  return [element, element.childNodes.length]
-}
 
 const render = (element: Element, state: Surface, focus: boolean) => {
   element.setAttribute('data-source', state.source)
   element.setAttribute('data-mode', state.mode)
   element.replaceChildren()
 
-  if (state.mode === 'Markdown') {
-    const input = document.createElement('textarea')
-    input.className = 'mde-source'
-    input.setAttribute('aria-label', 'Markdown source')
-    input.placeholder = 'Start writing...'
-    input.value = state.source
-    element.append(input)
-
-    if (focus) input.focus()
-    input.setSelectionRange(state.selection.start, state.selection.end)
+  if (state.mode === 'Visual') {
+    renderVisual(element, state.source, state.selection, focus)
 
     return
   }
 
-  for (const block of parse(state.source)) {
-    if (!block.editable) {
-      const card = document.createElement('div')
-      card.className = 'mde-protected'
-      const code = document.createElement('pre')
-      code.textContent = block.source
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.textContent = 'Edit source'
-      button.dataset['sourceStart'] = String(block.start)
-      card.append(code, button)
-      element.append(card)
-      continue
-    }
+  const input = document.createElement('textarea')
+  input.className = 'mde-source'
+  input.setAttribute('aria-label', 'Markdown source')
+  input.placeholder = 'Start writing...'
+  input.value = state.source
+  element.append(input)
 
-    const paragraph = document.createElement('div')
-    paragraph.className = 'mde-paragraph'
-    paragraph.contentEditable = 'true'
-    paragraph.setAttribute('role', 'textbox')
-    paragraph.setAttribute('aria-label', `Paragraph ${block.start + 1}`)
-    paragraph.setAttribute('aria-multiline', 'true')
-    paragraph.dataset['start'] = String(block.start)
-
-    for (const inline of block.inlines) {
-      if (inline.bold) {
-        const strong = document.createElement('strong')
-        strong.textContent = inline.text
-        paragraph.append(strong)
-      } else paragraph.append(document.createTextNode(inline.text))
-    }
-
-    element.append(paragraph)
-
-    if (focus && state.selection.start >= block.start && state.selection.end <= block.end) {
-      paragraph.focus()
-      const range = document.createRange()
-      const [startNode, startOffset] = locate(paragraph, visualOffset(block, state.selection.start))
-      const [endNode, endOffset] = locate(paragraph, visualOffset(block, state.selection.end))
-      range.setStart(startNode, startOffset)
-      range.setEnd(endNode, endOffset)
-      window.getSelection()?.removeAllRanges()
-      window.getSelection()?.addRange(range)
-    }
-  }
+  if (focus) input.focus()
+  input.setSelectionRange(state.selection.start, state.selection.end)
 }
 
 export const Synchronize = Command.define('SynchronizeEditor', {
@@ -165,10 +58,7 @@ export const Observe = Mount.defineStream('ObserveEditor', {
             Queue.offerUnsafe(queue, message)
           }
 
-          const paragraphBlock = (target: Element) =>
-            parse(element.getAttribute('data-source') ?? '').find(
-              (block) => block.start === Number(target.getAttribute('data-start')),
-            )
+          const field = () => element.querySelector('.mde-visual')
 
           const input = (event: Event) => {
             if (composing) return
@@ -181,23 +71,17 @@ export const Observe = Mount.defineStream('ObserveEditor', {
                   selection: { start: target.selectionStart, end: target.selectionEnd },
                 }),
               )
-            } else if (target instanceof HTMLElement && target.isContentEditable) {
-              const block = paragraphBlock(target)
+            } else {
+              const visual = field()
 
-              if (!block) return
-              const text = Array.from(target.childNodes, serialize).join('')
-              const nextBlock = parse(text)[0]
-              const local = nextBlock ? selected(target, nextBlock) : undefined
+              if (!visual) return
+              const state = read(visual)
               emit(
-                Message.cases.Applied.make({
-                  transaction: {
-                    start: block.start,
-                    end: block.end,
-                    text,
-                    selection: {
-                      start: block.start + (local?.start ?? text.length),
-                      end: block.start + (local?.end ?? text.length),
-                    },
+                Message.cases.UpdatedSource.make({
+                  source: state.source,
+                  selection: state.selection ?? {
+                    start: state.source.length,
+                    end: state.source.length,
                   },
                 }),
               )
@@ -205,9 +89,9 @@ export const Observe = Mount.defineStream('ObserveEditor', {
           }
 
           const select = () => {
+            if (composing || !document.activeElement || !element.contains(document.activeElement))
+              return
             const target = document.activeElement
-
-            if (!target || !element.contains(target) || composing) return
 
             if (target instanceof HTMLTextAreaElement) {
               emit(
@@ -216,8 +100,8 @@ export const Observe = Mount.defineStream('ObserveEditor', {
                 }),
               )
             } else {
-              const block = paragraphBlock(target)
-              const value = block ? selected(target, block) : undefined
+              const visual = field()
+              const value = visual ? read(visual).selection : undefined
 
               if (value) emit(Message.cases.Selected.make({ selection: value }))
             }
@@ -243,38 +127,16 @@ export const Observe = Mount.defineStream('ObserveEditor', {
 
           const beforeinput = (event: Event) => {
             if (!(event instanceof InputEvent) || composing) return
+            select()
 
-            if (
-              event.inputType === 'insertParagraph' &&
-              event.target instanceof HTMLElement &&
-              event.target.isContentEditable
-            ) {
-              const block = paragraphBlock(event.target)
-              const value = block ? selected(event.target, block) : undefined
-              const selection = window.getSelection()
+            if (event.inputType === 'insertParagraph') {
+              const visual = field()
 
-              if (!value || !block || !selection || selection.rangeCount === 0) return
+              if (!visual) return
+              const transaction = split(visual)
               event.preventDefault()
-              const range = selection.getRangeAt(0)
-              const before = document.createRange()
-              before.selectNodeContents(event.target)
-              before.setEnd(range.startContainer, range.startOffset)
-              const after = document.createRange()
-              after.selectNodeContents(event.target)
-              after.setStart(range.endContainer, range.endOffset)
-              const prefix = serialize(before.cloneContents())
-              const suffix = serialize(after.cloneContents())
-              const caret = block.start + prefix.length + 2
-              emit(
-                Message.cases.Applied.make({
-                  transaction: {
-                    start: block.start,
-                    end: block.end,
-                    text: `${prefix}\n\n${suffix}`,
-                    selection: { start: caret, end: caret },
-                  },
-                }),
-              )
+
+              if (transaction) emit(Message.cases.Applied.make({ transaction }))
 
               return
             }
@@ -315,26 +177,23 @@ export const Observe = Mount.defineStream('ObserveEditor', {
           }
 
           const paste = (event: Event) => {
-            if (
-              !(event instanceof ClipboardEvent) ||
-              !(event.target instanceof HTMLElement) ||
-              !event.target.isContentEditable
-            )
-              return
+            if (!(event instanceof ClipboardEvent) || !field()) return
             event.preventDefault()
             const selection = window.getSelection()
 
             const range =
               selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : undefined
 
-            if (!range || !event.target.contains(range.commonAncestorContainer)) return
+            const visual = field()
+
+            if (!range || !visual?.contains(range.commonAncestorContainer)) return
             const text = document.createTextNode(event.clipboardData?.getData('text/plain') ?? '')
             range.deleteContents()
             range.insertNode(text)
             range.setStartAfter(text)
             range.collapse(true)
-            window.getSelection()?.removeAllRanges()
-            window.getSelection()?.addRange(range)
+            selection?.removeAllRanges()
+            selection?.addRange(range)
             input(event)
           }
 

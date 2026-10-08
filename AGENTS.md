@@ -20,11 +20,14 @@ Read the installed `node_modules/effect/AGENTS.md` before changing Effect code. 
 
 - `packages/core` owns document state, selection, transactions, history, and pure transitions. It imports neither Foldkit, browser APIs, apps, nor provider adapters.
 - `packages/editor` owns Foldkit views and browser input, selection, focus, and composition integration. It depends on core.
+- `packages/plugins` owns built-in format representations. Core owns their contracts, not concrete output formats. The host chooses plugins.
 - `apps/playground` owns runtime startup and composition. Packages never import apps or reach into sibling workspace source through relative paths.
 - Formatting plugins return pure transactions. Rendering and custom-component plugins use explicit contracts. Prove one operation before introducing a general plugin framework.
 - Saving, publishing, and gbfm-specific integrations belong to the host. Do not modify gbfm without a separate request.
 
 Before changing editor state, name its authoritative representation, derived views, and writer. `Model.source` is authoritative; parsing and DOM content are derived, and `update` owns edits and history. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current visual subset is paragraphs and bold, not full CommonMark/GFM or a registered plugin engine.
+
+Visual mode has one editing host. Do not turn paragraphs back into separate contenteditable inputs. JSON is a versioned, read-only representation plugin, not another state store. Future JSON import or editing must decode its declared format and dispatch core transactions. [The architecture visual](docs/architecture.html) distinguishes implemented contracts from planned plugin capabilities.
 
 Use Effect for typed failures, asynchronous work, services, and resource lifetimes. Keep pure transformations pure. Execute Effects through the host's existing runtime boundary, not inside plugins or reducers. Decode external values with Schema at their boundary instead of using assertions.
 

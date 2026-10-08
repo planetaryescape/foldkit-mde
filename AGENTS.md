@@ -1,0 +1,39 @@
+# Foldkit MDE
+
+Build a small Markdown editor library with Foldkit and Effect. gbfm is the intended first consumer, not part of this repository's change scope.
+
+## Reference workflow
+
+Use [rat-stack's agent guide](https://ratstack.sh/llms.txt) as the architecture reference. Before writing code, search its rules and skills for the work at hand. Read the owning rules, relevant principles from [rat-stack-mode](https://ratstack.sh/skills/rat-stack-mode), and matching playbooks. Report which patterns affect the design and any violations you find.
+
+Read the installed `node_modules/effect/AGENTS.md` before changing Effect code. Check APIs against installed versions, not older local checkouts. Reference sources do not become runtime dependencies.
+
+[Our rat-stack adaptation](docs/rat-stack-reference.md) records adopted patterns, deliberate differences, and enforcement gaps. Local product decisions take precedence over template-specific choices:
+
+- Bun workspaces, not pnpm or Turborepo.
+- Foldkit and Effect as the only direct external application dependencies.
+- Effect Schema and exhaustive Match reducers, not XState or another actor runtime.
+- Alchemy for future infrastructure. Do not add infrastructure until a concrete host requirement exists. Deploys and production writes require explicit approval.
+- Keep development tooling in workspace packages. Preserve vendored licenses and provenance.
+
+## Ownership
+
+- `packages/core` owns document state, selection, transactions, history, and pure transitions. It imports neither Foldkit, browser APIs, apps, nor provider adapters.
+- `packages/editor` owns Foldkit views and browser input, selection, focus, and composition integration. It depends on core.
+- `apps/playground` owns runtime startup and composition. Packages never import apps or reach into sibling workspace source through relative paths.
+- Formatting plugins return pure transactions. Rendering and custom-component plugins use explicit contracts. Prove one operation before introducing a general plugin framework.
+- Saving, publishing, and gbfm-specific integrations belong to the host. Do not modify gbfm without a separate request.
+
+Before changing editor state, name its authoritative representation, derived views, and writer. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current implementation only edits source; do not claim WYSIWYG or plugin support yet.
+
+Use Effect for typed failures, asynchronous work, services, and resource lifetimes. Keep pure transformations pure. Execute Effects through the host's existing runtime boundary, not inside plugins or reducers. Decode external values with Schema at their boundary instead of using assertions.
+
+## Verification and delivery
+
+Run `bun run precommit` and `bun run build` before reporting readiness. `bun install` patches the compiler and Oxlint, then installs the repository-local Git hook. The hook runs formatting, lint, types, and tests without rewriting files.
+
+Never bypass hooks or weaken checks to make a change pass. Keep local commits atomic and message-only, with no attribution trailers or co-authors. Do not push or deploy without explicit approval.
+
+Choose tests that detect plausible broken behavior. For stateful editing, check command histories against an independent model. For domain rules, prefer generated inputs where they add coverage; demonstrate that an intentional defect fails the test before trusting it. Keep browser integration tests for selection, IME, and undo behavior.
+
+When a pattern needs enforcement, prefer the smallest compiler, lint, or test check that rejects it. Distinguish written policy from verified enforcement. The current fence does not yet include project-specific import-boundary lint rules or CI.

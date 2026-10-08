@@ -21,7 +21,8 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "precommit": "bun run format:check && bun run lint && bun run typecheck && bun run test",
-    "prepare": "effect-tsgo patch --typescript --oxlint"
+    "hooks:install": "git config --local core.hooksPath .githooks",
+    "prepare": "effect-tsgo patch --typescript --oxlint && bun run hooks:install"
   },
   "devDependencies": {
     "@effect/tsgo": "0.51.1",

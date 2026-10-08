@@ -54,7 +54,7 @@ The lint, format, and compiler defaults start from [your strict JS/TS gist](http
 - **Strict compiler configuration:** the gist's safety checks live in `tsconfig.base.json`. Browser/Bun workspaces override NodeNext resolution with Bundler resolution and add DOM/Bun declarations.
 - **Tests:** editor tests use Bun. We did not import the gist's Vitest configuration or install a second test framework. All 24 upstream anti-slop test files run through a Bun script using Node's native TypeScript support, as required by RuleTester.
 
-`bun run precommit` checks formatting, lint, types, and tests without changing files. Run `bun run format` or `bun run lint:fix` explicitly to apply fixes. No Git hook is installed automatically.
+`bun run precommit` checks formatting, lint, types, and tests without changing files. Run `bun run format` or `bun run lint:fix` explicitly to apply fixes. `bun install` installs the tracked `.githooks/pre-commit` through repository-local `core.hooksPath`; `bun run hooks:install` reinstalls it when needed. This repository owns that hook path. Build verification remains a separate `bun run build` step.
 
 `.vscode/settings.json` selects the workspace native TypeScript compiler and recommends the Oxc extension for lint/format integration. Open this repository as the editor workspace. Effect diagnostics come from type-aware Oxlint, while the Effect LSP supplies refactors and completions; duplicate LSP diagnostics are disabled following Effect's integration guidance. The CLI checks are verified independently of editor activation.
 
@@ -91,6 +91,8 @@ The next design question is the initial Markdown subset and how unsupported bloc
 ## Research and local references
 
 [Effect state machine research](docs/effect-state-machines-research.md) preserves the original version-specific investigation and records the chosen Schema + Match direction separately.
+
+[Rat-stack reference](docs/rat-stack-reference.md) records the patterns we adopt, deliberate differences, and enforcement gaps. [AGENTS.md](AGENTS.md) requires reading its relevant rules and skills before coding. We retain Bun, Foldkit, and Schema + Match. Future infrastructure uses Alchemy outside the editor core, when needed.
 
 Useful read-only references, relative to this repository:
 

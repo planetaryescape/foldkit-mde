@@ -108,6 +108,8 @@ Try the playground before expanding the plugin contract. The next design decisio
 
 [Effect state machine research](docs/effect-state-machines-research.md) preserves the original version-specific investigation and records the chosen Schema + Match direction separately.
 
+[Persistence design proposal](docs/persistence-design.md) investigates an Effect storage service, native IndexedDB Layers, autosave, and recovery. It verifies Foldkit's in-memory debugging history and compares checkpoints with durable action logs. The recommendation is source-only draft checkpoints with atomic revision checks; no persistence code or final storage decision has been implemented.
+
 [Rat-stack reference](docs/rat-stack-reference.md) records the patterns we adopt, deliberate differences, and enforcement gaps. [AGENTS.md](AGENTS.md) requires reading its relevant rules and skills before coding. We retain Bun, Foldkit, and Schema + Match. Future infrastructure uses Alchemy outside the editor core, when needed.
 
 Useful read-only references, relative to this repository:

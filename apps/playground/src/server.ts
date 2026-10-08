@@ -1,10 +1,10 @@
-import page from "./index.html";
+import page from './index.html'
 
 const server = Bun.serve({
-  hostname: "127.0.0.1",
+  hostname: '127.0.0.1',
   port: 3017,
-  routes: { "/": page },
+  routes: { '/': page },
   development: false,
-});
+})
 
-console.log(`Foldkit MDE playground: ${server.url}`);
+await Bun.write(Bun.stdout, `Foldkit MDE playground: ${server.url}\n`)

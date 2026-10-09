@@ -1,0 +1,28 @@
+{
+  "skill_name": "maintaining-blueprints",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "For a small new Markdown editor repo, propose documentation paths and write a brief architecture outline. Owner requirements: pure core, optional format plugins, browser UI, no storage yet. No code has been written. Show package ownership and consumer usage without inventing implemented APIs. Do not write application code.",
+      "expected_output": "A small indexed blueprint, separate plan/log, explicit proposed paths/APIs, file ownership and consumer composition, no invented implementation or confirmed decisions.",
+      "files": [],
+      "assertions": [
+        "Separates blueprint, implementation plan, and implementation log paths.",
+        "Labels package paths and consumer APIs as proposed rather than implemented.",
+        "Includes ownership and consumer usage without introducing storage or application code."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Write documentation updates from these verified facts only. Existing docs/blueprint/04-saving.md says every edit is saved synchronously. Accepted D007 requires asynchronous checkpoints. Code now debounces saves by 500 ms. Unit checks passed; browser reload check failed with missing latest text. Work is committed locally, not pushed. Keep established paths and preserve history. Give a blueprint correction and implementation log entry; decide whether the saving slice is complete. Do not change code or fabricate test details.",
+      "expected_output": "Keeps chapter/decision IDs; distinguishes accepted async policy from failed implementation verification; records failed browser check and local-only delivery; preserves history; slice remains incomplete.",
+      "files": [],
+      "assertions": [
+        "Keeps docs/blueprint/04-saving.md and D007 without inventing a replacement decision.",
+        "Records passed unit checks and failed browser reload separately without claiming reliable saving.",
+        "States committed locally and not pushed, and keeps the slice incomplete.",
+        "Preserves prior log entries and appends a new entry or explicit correction."
+      ]
+    }
+  ]
+}

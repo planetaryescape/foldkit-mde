@@ -4,6 +4,8 @@ Build a small Markdown editor library with Foldkit and Effect. gbfm is the inten
 
 ## Reference workflow
 
+For blueprint structure, architectural decisions, implementation plans, logs, or documentation reconciliation, load [maintaining-blueprints](.agents/skills/maintaining-blueprints/SKILL.md). Keep proposed contracts, inspected behavior, and delivery evidence distinct.
+
 Use [rat-stack's agent guide](https://ratstack.sh/llms.txt) as the architecture reference. Before writing code, search its rules and skills for the work at hand. Read the owning rules, relevant principles from [rat-stack-mode](https://ratstack.sh/skills/rat-stack-mode), and matching playbooks. Report which patterns affect the design and any violations you find.
 
 Read the installed `node_modules/effect/AGENTS.md` before changing Effect code. Check APIs against installed versions, not older local checkouts. Reference sources do not become runtime dependencies.

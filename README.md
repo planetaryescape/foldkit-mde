@@ -13,11 +13,13 @@ bun run precommit
 bun run build
 ```
 
-The playground listens at <http://127.0.0.1:3017>. Its static build goes to `apps/playground/dist/`. Edits are not saved.
+The playground listens at <http://127.0.0.1:3017>. Its static build goes to `apps/playground/dist/`. It now saves exact Markdown locally in IndexedDB. Reload restores the last committed source with fresh history, caret, and Visual mode. This is browser-local saving, not publishing or backup.
 
 Browser hot reload is disabled because Foldkit uses Vite-specific `import.meta.hot` methods that Bun does not implement. Restart the server and refresh the browser after source changes.
 
 With the server running and `agent-browser` installed separately, run `bun run --filter @foldkit-mde/playground test:browser`. This checks the real browser adapter without adding a browser library to the project. Composition and paste events in this check are synthetic; a real operating-system IME still needs manual testing.
+
+Also run `bun run --filter @foldkit-mde/playground test:storage` for the native IndexedDB contract and `bun run --filter @foldkit-mde/playground test:persistence` for packaged autosave, reload, two-tab conflict, and recovery UI. These use dedicated automation profiles. The storage harness creates and deletes its own disposable database. The editor check changes its automation profile's playground document and restores its deliberately corrupted checkpoint afterward. Do not run it against a profile containing valuable work. `/persistence-check` is a local test route, not part of the static production build.
 
 ## Bun workspaces
 
@@ -28,6 +30,7 @@ packages/
   core/             Effect Schema Model/Messages and pure Match reducer
   editor/           Foldkit view and editor stylesheet
   plugins/          Built-in representation plugins, starting with JSON
+  persistence/      Effect DocumentStore, native IndexedDB, memory Layer, autosave reducer
   anti-slop/        Vendored development-only Oxlint plugins and tests
 docs/
   effect-state-machines-research.md
@@ -44,6 +47,11 @@ There is one root `bun.lock`. The root catalog pins runtime versions for all wor
 - `@foldkit-mde/editor/style.css`: editor styles.
 - `@foldkit-mde/core/plugins`: formatting and representation contracts.
 - `@foldkit-mde/plugins/json`: versioned JSON Schema and a pure document projection.
+- `@foldkit-mde/plugins/markdown`: exact Markdown representation.
+- `@foldkit-mde/editor/persistence`: opt-in `make`, Model/Message/Startup, local-save/recovery `view`, and typed `project`.
+- `@foldkit-mde/persistence/store`: DocumentStore and Schema-backed keys, receipts, failures.
+- `@foldkit-mde/persistence/indexed-db` and `/memory`: scoped native browser adapter and deterministic test Layer.
+- `@foldkit-mde/persistence/autosave`: pure lifecycle, events, intents, and flush outcomes.
 
 Only Foldkit and Effect are external application dependencies. Foldkit requires `@effect/platform-browser` and `parse5`, which also brings `entities`; Bun resolves those peer/transitive dependencies. The additional packages are development tooling, not editor runtime dependencies.
 
@@ -73,7 +81,7 @@ Anti-slop lives in `packages/anti-slop`, not a top-level tools directory. Its im
 2. Support switching between **editable WYSIWYG** and **raw Markdown**, not just a read-only preview.
 3. Use our own **Effect Schema + exhaustive Match reducer**. Foldkit owns the UI event loop; do not add another actor runtime.
 4. Keep a core with testable plugin behavior. Bold/italic, custom components, and Markdown-to-HTML are plugin capabilities rather than hardcoded host features.
-5. Keep saving, publishing, draft recovery, and application-specific integrations in the host.
+5. Package primary local saving and recovery with the editor. The host configures identity, policy, storage Layer, and runtime. Backend saving, publishing, and application-specific integrations remain in the host.
 
 The playground implements the first editing slice: editable paragraphs and `**bold**`, raw Markdown, selection-aware bold toggling, paragraph breaks, and shared undo/redo. Select plain text to apply bold, or the full contents of a bold span to remove it. Partial selections inside bold and mixed formatting selections are not supported yet. Bold is a pure transaction-producing operation, not a registered plugin engine.
 
@@ -83,7 +91,23 @@ Visual mode is now one continuous editing host. Paragraphs are structural childr
 
 Open **JSON representation** below the editor to inspect the built-in plugin output. It includes exact source, paragraph nodes, bold marks, source spans, and opaque raw nodes. JSON is a read-only projection, not another authoritative document. JSON import/editing is not implemented; it must validate its format and produce core transactions when added.
 
-This is not a full CommonMark/GFM editor. Full formatting semantics, history coalescing, multiple editor instances, persistence, and dynamic plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
+This is not a full CommonMark/GFM editor. Full formatting semantics, history coalescing, multiple editor instances, durable undo, and dynamic plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
+
+## Local saving: package usage
+
+The playground's [compiled composition](apps/playground/src/main.ts) is the consumer recipe. Import `@foldkit-mde/editor/persistence`, call `make({ key, seed, policy })`, and give Foldkit the integration's `init` and `update`. Provide an IndexedDB Layer through `resources`, use `Startup` as the Flags schema, and pass `editor.load` as the boot Flags Effect. Render `Editor.view(model, h)`. The host does not write an autosave reducer.
+
+The core remains usable without storage. The persistent integration wraps it and observes accepted source differences, including undo, redo, and raw or visual edits. Selection and mode changes do not save or create history entries.
+
+- Playground policy: 500 ms quiet delay, 2 s maximum dirty window, 1 MiB UTF-8 source limit. These are explicit host choices, not measured crash-loss guarantees. Background-tab throttling and I/O can delay completion.
+- One immutable write is in flight. Newer edits coalesce. Unknown outcomes retry the original write ID; confirmed aborted writes can retry the latest source. Stale receipts cannot mark newer edits saved.
+- Latest and previous checkpoints rotate in one compare-and-save transaction. Another writer or cleared storage causes a conflict, not silent replacement. A conflict stops automatic writes but keeps local edits and export available.
+- Opening failures pause editing. The previous checkpoint can be checked, previewed, and exported without overwriting the unreadable original. There is no destructive reset or automatic merge.
+- **Saved locally** means a transaction committed the current source. **Keep on this device** requests retention separately. Neither prevents the user clearing browser data. Export valuable work.
+- `Editor.project(model, markdown)` and `Editor.project(model, json)` return `Option<ContentOutput<T>>` with key, local revision, representation ID, and typed content. They can include unsaved accepted source; projection is not a save receipt. HTML is not implemented.
+- For a host-controlled close, dispatch `Message.Persistence({ message: Event.Flush({ id }) })` using the Schema constructors and observe `FlushCompleted`. Outcomes are `Flushed`, `FlushFailed`, or `FlushBusy`. Wait before unmounting; unload is not a reliable asynchronous flush boundary. Restart resets session history and caret.
+
+The reducer, adapter, and integration contracts are mapped to files in [architecture section 09](docs/architecture.html#persistence). No action journal, SQLite, remote saving, or gbfm integration was added.
 
 ### Architecture to work toward
 
@@ -112,7 +136,7 @@ Try the playground before expanding the plugin contract. The next design decisio
 
 [Effect state machine research](docs/effect-state-machines-research.md) preserves the original version-specific investigation and records the chosen Schema + Match direction separately.
 
-[Persistence design proposal](docs/persistence-design.md) investigates an Effect storage service, native IndexedDB Layers, autosave, and recovery. It verifies Foldkit's in-memory debugging history and compares checkpoints with durable action logs. The recommendation is source-only draft checkpoints with atomic revision checks; no persistence code or final storage decision has been implemented.
+[Persistence research](docs/persistence-design.md) verifies Foldkit's in-memory debugging history and compares checkpoints with durable action logs. The revised [typed handoff](docs/persistence-tech-spec.md) records editor-owned primary local saving and recovery. Their proposed examples are historical design material; the implemented contracts and usage are documented above and in the architecture map. Native IndexedDB was selected without adding a direct external dependency.
 
 [Rat-stack reference](docs/rat-stack-reference.md) records the patterns we adopt, deliberate differences, and enforcement gaps. [AGENTS.md](AGENTS.md) requires reading its relevant rules and skills before coding. We retain Bun, Foldkit, and Schema + Match. Future infrastructure uses Alchemy outside the editor core, when needed.
 

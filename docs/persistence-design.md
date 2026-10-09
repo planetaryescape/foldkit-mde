@@ -1,16 +1,30 @@
 # Data-layer design for Foldkit MDE
 
-Status: proposed, not implemented. Research date: 2026-10-08.
+Status: research retained; first native IndexedDB slice implemented on 2026-10-09. Research date: 2026-10-08. Ownership revised 2026-10-09. See [current usage and limits](../README.md#local-saving-package-usage) and [the architecture extension](architecture.html#persistence). Proposed contracts below are historical, not the public API.
 
 Based on the supplied tracked-file snapshot of local `main` at `fe42ef0`, including architecture work in progress. This snapshot has no Git repository or remote. APIs and files marked **proposed** do not exist yet.
 
 ## Recommendation
 
-Start with **versioned Markdown snapshots, native IndexedDB, and an Effect `DocumentStore` service with load and atomic compare-and-save**. Keep autosave policy in a small pure lifecycle beside the host integration. Foldkit runs the resulting commands through its existing runtime bridge.
+Start with **editor-owned primary local saving and draft recovery, versioned Markdown snapshots, native IndexedDB, and an Effect `DocumentStore` service**. The opt-in editor integration packages loading, autosave, save/recovery controls and typed content output. Keep the lifecycle pure. Foldkit runs the resulting commands through its existing host runtime bridge. Consumers configure and route the integration rather than implement its save behavior.
 
 Do not persist Foldkit messages or adopt event sourcing in the first slice. Foldkit offers useful in-memory debugging history, but not a durable action log or automatic crash recovery. SQLite and an accepted-change journal remain separate later choices.
 
-The first slice recovers the last committed Markdown source after reopening. It does not promise every keystroke survives a crash, restore undo history, synchronize tabs, or save to a server. Browser-local saving is not publishing or backup.
+The first slice stores the primary local document and recovers its last committed Markdown source after reopening. Retain latest and preceding checkpoints atomically for bounded corruption recovery. It does not promise every keystroke survives a crash, restore undo history, synchronize tabs, or save to a server. Browser-local saving is not publishing or backup.
+
+## Confirmed ownership and revised handoff
+
+The owner confirmed that storage serves **both primary local saving and draft recovery**. The revised [tech spec](persistence-tech-spec.md) is the current implementation handoff and supersedes the initial proposal in sections 4–11 below wherever ownership, APIs, retention or scope differs. Those sections are retained as the original alternatives/research rationale, not the current contract.
+
+- The packaged editor integration owns its Model/Message composition, autosave, load/retry/flush behavior and local-save/recovery UI. No consumer-written autosave module is required.
+- The host supplies stable identity/configuration, chooses a Layer and runs/maps the integration through Foldkit. Backend saving/publishing remains host-owned. Selecting a Layer does not make the host responsible for storage behavior.
+- The editor supplies typed content output through the existing Representation seam. Exact Markdown and existing JSON ship first. HTML fits that seam but requires a safe renderer and syntax policy before being advertised. Projection can include unsaved accepted source and does not mark anything saved.
+- Store an envelope containing latest and preceding checkpoints. Rotate atomically on a new commit, not on retries. Add read-only `loadRecovery`; independently validate previous and offer preview/export or create under a new key. Never adopt it as the current CAS head or overwrite an unreadable original.
+- Offer an explicit persistent-storage request and report its result separately from Saved locally. Browser clearing/eviction still requires a warning and export option. Two local checkpoints are not an independent backup.
+- Keep create/open/switch/flush in the small first slice. Catalog/search and guarded deletion remain deferred editor capabilities, not obligations pushed onto the host. Deletion needs stale-session/tombstone semantics first.
+- Unknown commit outcomes retry the original immutable request. Confirmed no-write failures may explicitly retry newer corrected source.
+
+The implementation map in architecture.html preserves the original editing baseline and adds the implemented local-saving extension. AGENTS.md now separates packaged local saving from host-owned backend saving and publishing. The native adapter and pure lifecycle implement the first slice without a direct platform-browser dependency, action journal, SQLite, or document switching.
 
 ## 1. Existing authority and integration points
 
@@ -53,7 +67,7 @@ Primary implementation references:
 
 The `maxEntries` JSDoc describes full snapshots per entry, but the implementation uses sparse keyframes by default. Excluding Message tags forces keyframes for every recorded entry. Prefer the implementation for this detail.
 
-**This playground uses Bun's server with `development: false`, not Vite.** It supplies no DevTools override or Vite plugin. Foldkit's default recording requires `import.meta.hot` in a top-level window; Foldkit does not inspect Bun's `development` setting itself. Without that hot metadata, default recording is disabled. An explicit `devTools: { show: 'Always' }` can enable in-memory recording without it. The presence of DevTools code in the dependency therefore does not mean this host already records an editor action history.
+**This playground uses Bun's server with `development: false`, not Vite.** It supplies no DevTools override or Vite plugin. Foldkit's default recording requires `import.meta.hot` in a top-level window. The presence of DevTools code in the dependency therefore does not mean this host already records an editor action history.
 
 ## 3. Choose the durable record
 
@@ -257,8 +271,6 @@ Use Bun tests and Effect test services/Deferred to control ordering and time, pl
 This work changed only this Markdown design document, confirmed by comparing the extracted tree with the original archive. No persistence, gbfm changes, production writes, publishing, deployment, dependency upgrades, or new threads. No Git commits were created. `bun install --frozen-lockfile` could not run because the orb has Bun 1.3.10 and the snapshot uses lockfile version 2 with Bun 1.4.0. No lockfile was regenerated. Exact Foldkit/Effect registry tarballs supplied version-specific inspection instead; their hashes matched registry metadata. The document passed checks for balanced code fences, existing local source links, and absence of em dashes. `bun run precommit` stopped at missing `oxfmt`; `bun run build` could not resolve the uninstalled workspace CSS export. No passing application tests, build, browser persistence test, or API compile check was claimed for this design-only work.
 
 ### Rules that shaped the recommendation
-
-For subsequent adapter and plugin design, consult [the vendored plugin-system references](plugin-system-references.md), especially executor's service composition and after-commit cleanup, and OpenCode V2's scoped contribution lifetimes. They supplement this proposal, not its storage contract: keep `DocumentStore` narrow, use the host's Foldkit runtime, and do not adopt a generic database/plugin framework or an additional dependency.
 
 Read [rat-stack's guide](https://ratstack.sh/llms.txt), [rules](https://ratstack.sh/AGENTS.md), [rat-stack-mode](https://ratstack.sh/skills/rat-stack-mode), [add-a-store](https://ratstack.sh/skills/add-a-store), [lifecycle](https://ratstack.sh/skills/add-a-lifecycle-machine), [keep-or-cut](https://ratstack.sh/skills/keep-or-cut), and [uncomplect](https://ratstack.sh/skills/uncomplect), plus the relevant source principles: name the system of record, no dual writes, validate before durable write, one writer per partition, idempotent operations, real provider guarantees, distinct unknown outcomes, bounded reads and measured limits. Local adaptation takes precedence over XState, server capability projections, infrastructure and pnpm examples.
 

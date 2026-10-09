@@ -28,7 +28,7 @@ For an intentional refresh, download each pinned commit archive into ignored scr
 - [Composition and dispatch](references/executor/packages/core/sdk/src/executor.ts): how the host wires concrete plugins rather than letting each plugin own a runtime.
 - [Storage runtime](references/executor/packages/core/sdk/src/fuma-runtime.ts) and [after-commit tests](references/executor/packages/core/sdk/src/plugin-after-commit.test.ts): transactional state changes versus irreversible external cleanup. Cleanup registered with `afterCommit` is discarded on rollback.
 
-Use this for Effect service adapters and host composition. Do not copy credential providers, OAuth, HTTP routing, policy engines, or its general catalog into formatting plugins. Our [persistence proposal](persistence-design.md) remains a narrow `DocumentStore` contract, not executor's database abstraction.
+Use this for Effect service adapters and host composition. Do not copy credential providers, OAuth, HTTP routing, policy engines, or its general catalog into formatting plugins. Our implemented [local-saving integration](../README.md#local-saving-package-usage) adapts the atomic-operation boundary through a narrow `DocumentStore`, not executor's database abstraction. Foldkit owns command execution; the editor owns the autosave policy, and the host selects the Layer.
 
 ### OpenCode: Effect scopes and contribution lifetime
 
@@ -64,13 +64,13 @@ Use the small function shape as a comparison for testable transformations. Pi's 
 
 ## How this maps to our architecture
 
-| Responsibility                            | Our owner                                             | Useful reference                                                      | Boundary to preserve                                                          |
-| ----------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Formatting input/result contract          | `packages/core/src/plugins.ts`                        | Pi's small transform surface; EmDash's explicit patches               | Pure inputs and transactions; core applies edits and owns undo.               |
-| JSON/HTML representations                 | `packages/plugins` implementations, core contracts    | Executor's separate validation/projection/invocation responsibilities | Source stays authoritative; projection cannot mutate the document.            |
-| Custom-component registration and cleanup | Future editor contract, host composition              | OpenCode V2 scopes; OpenClaw registration phase                       | Scope contributions to an editor instance; do not create a second event loop. |
-| Persistence operations                    | Proposed `packages/persistence`, host-selected Layers | Executor's storage and cleanup boundaries                             | Typed service, atomic save, explicit outcomes; no database handles in core.   |
-| Runtime and plugin selection              | `apps/playground`, later the gbfm host                | Executor composition; OpenCode lifecycle                              | Host chooses implementations and provides services to Foldkit.                |
+| Responsibility                            | Our owner                                                            | Useful reference                                                      | Boundary to preserve                                                          |
+| ----------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Formatting input/result contract          | `packages/core/src/plugins.ts`                                       | Pi's small transform surface; EmDash's explicit patches               | Pure inputs and transactions; core applies edits and owns undo.               |
+| JSON/HTML representations                 | `packages/plugins` implementations, core contracts                   | Executor's separate validation/projection/invocation responsibilities | Source stays authoritative; projection cannot mutate the document.            |
+| Custom-component registration and cleanup | Future editor contract, host composition                             | OpenCode V2 scopes; OpenClaw registration phase                       | Scope contributions to an editor instance; do not create a second event loop. |
+| Persistence operations                    | `packages/persistence`, editor-owned lifecycle, host-selected Layers | Executor's storage and cleanup boundaries                             | Typed service, atomic save, explicit outcomes; no database handles in core.   |
+| Runtime and plugin selection              | `apps/playground`, later the gbfm host                               | Executor composition; OpenCode lifecycle                              | Host chooses implementations and provides services to Foldkit.                |
 
 These are design references, not approval to introduce a registry. The current editor has formatting and representation contracts but no general dynamic plugin engine. Keep pure formatting, derived output, scoped DOM behavior, and external services separate instead of giving every plugin one enormous context.
 

@@ -328,12 +328,19 @@
           Source baseline: local revision <code>fe42ef0</code> · checked 8 October 2026 · Effect
           4.0.0 / Foldkit 0.167.0
         </p>
+        <p class="callout">
+          The original editing map below remains valid without storage. The playground now uses the
+          <a href="#persistence">implemented local-saving extension in section 09</a>, added 9
+          October 2026. Local saving belongs to the packaged editor; backend publishing still
+          belongs to the host.
+        </p>
       </header>
       <nav aria-label="Architecture sections">
         <a href="#map">01 / Package map</a><a href="#files">02 / File tree</a
         ><a href="#state">03 / State and rules</a><a href="#flow">04 / Edit flow</a
         ><a href="#plugins">05 / Plugin contracts</a><a href="#usage">06 / Use the packages</a
-        ><a href="#gbfm">07 / gbfm and gaps</a><a href="#checks">08 / Evidence</a>
+        ><a href="#gbfm">07 / gbfm and gaps</a><a href="#checks">08 / Evidence</a
+        ><a href="#persistence">09 / Local saving</a>
       </nav>
 
       <section id="map">
@@ -919,11 +926,9 @@ JSON:
           </div>
         </div>
         <details open>
-          <summary>B / Minimal main.ts using the actual host wiring</summary>
+          <summary>B / Minimal main.ts without local saving</summary>
           <div class="code">
-            <div class="label">
-              Adapted from apps/playground/src/main.ts / complete browser entry
-            </div>
+            <div class="label">Original editing-only composition / complete browser entry</div>
             <pre id="consumer-main">
 import { init, Model, type Message, update } from '@foldkit-mde/core'
 import { Synchronize, view as editorView } from '@foldkit-mde/editor'
@@ -1008,8 +1013,9 @@ export const boldPlugin: FormattingPlugin = {
               <li>Load canonical Markdown and initialize editor state.</li>
               <li>Translate child editor messages through the host's Foldkit update path.</li>
               <li>
-                Observe changed source for draft recovery or saving. Model changes are not durable
-                saves.
+                Configure the editor-owned local-saving integration with identity, policy, and a
+                storage Layer. Observe typed output for backend saving or publishing. Model changes
+                and projections are not durable receipts.
               </li>
               <li>
                 Keep publishing, auth, uploads, Spotify, and network failures in host services.
@@ -1149,6 +1155,143 @@ export const boldPlugin: FormattingPlugin = {
             </p>
           </div>
         </details>
+      </section>
+      <section id="persistence">
+        <div class="eyebrow">09 / Implemented local-saving extension</div>
+        <h2>The editor owns saving. The host chooses storage.</h2>
+        <p>
+          Markdown remains authoritative. IndexedDB holds the last committed checkpoint, not a
+          second editable document. JSON remains a projection. The host supplies identity, seed,
+          policy and Layer; the integration supplies loading, autosave, status, retry, flush and
+          recovery.
+        </p>
+        <figure class="diagram">
+          <svg viewBox="0 0 1000 400" role="img" aria-labelledby="save-title save-desc">
+            <title id="save-title">Local-save ownership and data flow</title>
+            <desc id="save-desc">
+              The host provides Foldkit resources and boot Flags. The packaged editor applies edits
+              through core, then asks the pure autosave machine for intents. Foldkit commands call
+              DocumentStore. The IndexedDB Layer atomically compares and rotates latest and previous
+              source checkpoints. Correlated receipts update save status, never document history.
+            </desc>
+            <defs>
+              <marker
+                id="save-arrow"
+                markerWidth="8"
+                markerHeight="8"
+                refX="7"
+                refY="4"
+                orient="auto"
+              >
+                <path d="M0 0 L8 4 L0 8" fill="#55735b" />
+              </marker>
+            </defs>
+            <g fill="#fbfaf6" stroke="#aeb8aa">
+              <rect x="20" y="30" width="280" height="100" />
+              <rect x="360" y="30" width="280" height="100" />
+              <rect x="700" y="30" width="280" height="100" />
+              <rect x="360" y="220" width="280" height="100" />
+              <rect x="700" y="220" width="280" height="100" />
+            </g>
+            <g fill="#252d28" font-family="system-ui, sans-serif" font-size="16">
+              <text x="38" y="58">HOST / playground main.ts</text>
+              <text x="38" y="87" font-size="14">Identity + policy + resources</text>
+              <text x="38" y="109" font-size="14">Startup Flags: editor.load</text>
+              <text x="378" y="58">EDITOR / persistence.ts</text>
+              <text x="378" y="87" font-size="14">Core.update → accepted source</text>
+              <text x="378" y="109" font-size="14">Local model + save/recovery UI</text>
+              <text x="718" y="58">PURE / autosave.ts</text>
+              <text x="718" y="87" font-size="14">Schema states + Match transitions</text>
+              <text x="718" y="109" font-size="14">One flight; coalesce newer edits</text>
+              <text x="378" y="248">FOLDKIT / commands</text>
+              <text x="378" y="277" font-size="14">Timers + save/retry/recovery</text>
+              <text x="378" y="299" font-size="14">DocumentStore service operations</text>
+              <text x="718" y="248">LAYER / indexed-db.ts</text>
+              <text x="718" y="277" font-size="14">Atomic compare-and-save</text>
+              <text x="718" y="299" font-size="14">Latest + previous checkpoints</text>
+            </g>
+            <g fill="none" stroke="#55735b" stroke-width="2" marker-end="url(#save-arrow)">
+              <path d="M300 80 H350" />
+              <path d="M640 80 H690" />
+              <path d="M840 130 V166 H500 V210" />
+              <path d="M640 270 H690" />
+              <path d="M840 320 V380 H330 V180 H420 V140" />
+            </g>
+            <g fill="#616a63" font-family="system-ui, sans-serif" font-size="13">
+              <text x="640" y="155">intents</text>
+              <text x="380" y="365">correlated receipt or typed failure → status</text>
+            </g>
+          </svg>
+        </figure>
+        <div class="grid">
+          <article class="card editor">
+            <h3>Integration and consumer files</h3>
+            <pre>
+apps/playground/src/main.ts
+  Editor.make → init/update/view
+  resources: IndexedDb.layer
+  Flags: Startup; boot: editor.load
+
+packages/editor/src/
+  persistence.ts          composition + typed project
+  persistence-model.ts    parent Model / Message / Startup
+  persistence-commands.ts Foldkit ↔ DocumentStore
+  persistence-view.ts     status / retry / recovery
+
+packages/plugins/src/
+  markdown.ts             exact string output
+  json.ts                 versioned JSON output</pre>
+          </article>
+          <article class="card core">
+            <h3>Pure lifecycle and adapter files</h3>
+            <pre>
+packages/persistence/src/
+  store.ts        service + Schemas + safe failures
+  autosave.ts     pure state / event / intent reducer
+  checkpoints.ts  validation + CAS + retry / rotation
+  indexed-db.ts   scoped native transactions
+  memory.ts       deterministic service Layer
+  *.test.ts       public contract / lifecycle tests
+
+apps/playground/
+  src/persistence-check.* native browser contract
+  test/persistence-check.js reload / conflict / recovery</pre>
+          </article>
+        </div>
+        <div class="callout">
+          <strong>Consumer API:</strong> <code>Editor.make({ key, seed, policy })</code> supplies
+          the complete integration. <code>Editor.project(model, markdown | json)</code> returns
+          typed content and its local revision, not a save receipt. Follow
+          <a href="../apps/playground/src/main.ts">the compiled playground composition</a> or
+          <a href="../README.md#local-saving-package-usage">the current usage guide</a>.
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>What commits</h3>
+            <p>
+              Seed only when missing, including empty source. 500 ms quiet / 2 s maximum
+              dirty-window policy in the playground; 1 MiB UTF-8 limit. A receipt is emitted only
+              after transaction completion. Session, local revision, key and write ID guard stale
+              results. Unknown outcomes retry the exact old write.
+            </p>
+          </article>
+          <article class="card">
+            <h3>What stays safe</h3>
+            <p>
+              Conflicts stop automatic writes and preserve local edits/export. Failed loading pauses
+              editing. Recovery previews/exports the previous checkpoint without overwriting the
+              unreadable original. Retention permission is separate from Saved locally. Export
+              valuable work.
+            </p>
+          </article>
+        </div>
+        <p class="muted">
+          Verified through native browser transactions and two independent runtimes: competing
+          writers, aborted writes after request success, malformed/future rows, reload, empty
+          recovery and conflict UX. No journal, durable undo, SQLite, switching, catalog, deletion,
+          remote save or gbfm integration. Browser scheduling and storage retention are not
+          crash-loss guarantees.
+        </p>
       </section>
       <footer class="muted">
         This is an implementation map and a consumer guide, not a claim of full WYSIWYG, a published

@@ -2,6 +2,8 @@
 
 Checked on 2026-10-08. Start with [llms.txt](https://ratstack.sh/llms.txt), [AGENTS.md](https://ratstack.sh/AGENTS.md), and [VISION.md](https://ratstack.sh/VISION.md). This project adopts relevant patterns rather than cloning the template or its dependency set.
 
+This is contributor guidance, not a shipped-feature inventory. Start with [the blueprint](../blueprint/README.md) for product contracts.
+
 ## Patterns we adopt
 
 | Reference                                                                           | Application here                                                                                                             |

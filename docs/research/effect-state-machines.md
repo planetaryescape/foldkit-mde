@@ -1,10 +1,12 @@
 # Effect state machine options for Foldkit MDE
 
+Status: historical research. The selected reducer direction remains current; feature and package statements below describe the scaffold at the research date. See [the implemented architecture](../blueprint/architecture.html) for current editing, history, plugin contracts, and local saving.
+
 ## Selected direction
 
 We chose our own **Effect Schema + exhaustive Match reducer**, not Foldkit's experimental Machine or a separate statechart/actor library. Foldkit owns the UI event loop. Formatting plugins should produce pure editing transactions; async plugin work uses Effect and explicit completion Messages. No second Queue/Ref actor owns editor state.
 
-The Bun workspace now separates headless core, Foldkit presentation, and the playground composition root. The implemented reducer currently handles source replacement only. Editable WYSIWYG, shared history, and plugin contracts remain future work, not features of this scaffold.
+At the research baseline, the Bun workspace separated headless core, Foldkit presentation, and the playground composition root. The reducer handled source replacement only. Editable WYSIWYG, shared history, and plugin contracts were future work at that point.
 
 Version update on 2026-10-08: the project uses stable `effect@4.0.0` and `foldkit@0.167.0`. Effect 4.0.2 is the latest stable registry version checked, but Foldkit's declared peers pin Effect and platform-browser to exactly 4.0.0. We did not override those peers.
 
@@ -27,13 +29,13 @@ Research date: 2026-10-08. The original target was `effect@4.0.0-rc.116` and `fo
 
 ## 0. Foldkit already ships a Machine
 
-The installed [`machine.d.ts`](../node_modules/foldkit/dist/experimental/machine/machine.d.ts) and [`machine.js`](../node_modules/foldkit/dist/experimental/machine/machine.js) are the exact-version primary sources. The older local [checkout example](../../invoicing-mprocs/repos/foldkit/examples/checkout-machine/src/main.ts) is useful for structure but has older API shapes. Upstream repository: [foldkit/foldkit](https://github.com/foldkit/foldkit).
+The then-installed `foldkit/dist/experimental/machine/machine.d.ts` and `machine.js` were the exact-version primary sources. The older local `../invoicing-mprocs/repos/foldkit/examples/checkout-machine/src/main.ts` checkout example was useful for structure but had older API shapes. These local research inputs are not portable repository links. Upstream repository: [foldkit/foldkit](https://github.com/foldkit/foldkit).
 
 - Schema state/Message unions define the protocol. `define` compiles a state-local table; `to` names an edge's target. `when` supplies ordered pure guards, including Option-valued guards that refine data for the edge. `otherwise` and `ignore` give explicit fallback behavior.
 - Edge handlers return `Update.Return`: next Model plus optional Commands. `transition` applies one Message; `step` exposes whether it transitioned or was ignored and why. `fold` embeds a Machine state field into a parent Model.
 - Shared transition defaults are expanded into state-local tables. They are not hierarchical parent states. The inspected definition has no native compound/parallel state configuration, invoked state work, or entry/exit lifecycle hooks.
 - `edges`, `reachableFrom`, `unreachableStates`, and `deadTransitions` support inspection. Reachability is structural: guard feasibility and external state changes are not proved. It also exposes diagram export.
-- Crucially, it is not another runtime. State remains in the Foldkit Model; the normal runtime executes Commands. Leaving a Machine state does not automatically cancel a Command. Subscriptions, Mounts, ManagedResources, or an explicit cancellation protocol still own external work and resource lifetimes. The installed [ManagedResource contract](../node_modules/foldkit/dist/managedResource/managedResource.d.ts) describes model-driven acquisition/release.
+- Crucially, it is not another runtime. State remains in the Foldkit Model; the normal runtime executes Commands. Leaving a Machine state does not automatically cancel a Command. Subscriptions, Mounts, ManagedResources, or an explicit cancellation protocol still own external work and resource lifetimes. The then-installed `foldkit/dist/managedResource/managedResource.d.ts` ManagedResource contract described model-driven acquisition/release.
 - It is explicitly experimental; API stability is not promised. Keeping application state schemas and behavioral tests explicit limits the cost of replacing the transition-table notation later.
 
 An inline Bun smoke check against the installed packages constructed a two-state Raw/Visual machine and verified transition, exact source preservation, ignored-event reporting, and structural reachability. This was not a browser editor integration, a cancellation test, or a persisted project test. No scratch source file was created.

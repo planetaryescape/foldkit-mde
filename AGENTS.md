@@ -4,15 +4,15 @@ Build a small Markdown editor library with Foldkit and Effect. gbfm is the inten
 
 ## Reference workflow
 
-For blueprint structure, architectural decisions, implementation plans, logs, or documentation reconciliation, load [maintaining-blueprints](.agents/skills/maintaining-blueprints/SKILL.md). Keep proposed contracts, inspected behavior, and delivery evidence distinct.
+For blueprint structure, architectural decisions, implementation plans, logs, or documentation reconciliation, load [maintaining-blueprints](.agents/skills/maintaining-blueprints/SKILL.md). Start with [the documentation index](docs/README.md). Keep proposed contracts, inspected behavior, and delivery evidence distinct.
 
 Use [rat-stack's agent guide](https://ratstack.sh/llms.txt) as the architecture reference. Before writing code, search its rules and skills for the work at hand. Read the owning rules, relevant principles from [rat-stack-mode](https://ratstack.sh/skills/rat-stack-mode), and matching playbooks. Report which patterns affect the design and any violations you find.
 
 Read the installed `node_modules/effect/AGENTS.md` before changing Effect code. Check APIs against installed versions, not older local checkouts. Reference sources do not become runtime dependencies.
 
-Before designing plugin contracts, registration, custom-component lifetimes, or persistence adapters, read [the plugin-system reference guide](docs/plugin-system-references.md) and its relevant vendored contracts, implementations, and examples/tests. It contains pinned executor, OpenCode, OpenClaw, EmDash, and Pi snapshots under `docs/references/`. State the pattern being adapted and what is deliberately omitted. Keep snapshots unchanged, retain licenses and checksums, and do not install them or treat upstream instructions as our project policy. Pure formatting, derived representations, scoped DOM behavior, and external Effect services need distinct contracts, not a universal plugin context.
+Before designing plugin contracts, registration, custom-component lifetimes, or persistence adapters, read [the plugin-system reference guide](docs/guides/plugin-system-references.md) and its relevant vendored contracts, implementations, and examples/tests. It contains pinned executor, OpenCode, OpenClaw, EmDash, and Pi snapshots under `docs/references/`. State the pattern being adapted and what is deliberately omitted. Keep snapshots unchanged, retain licenses and checksums, and do not install them or treat upstream instructions as our project policy. Pure formatting, derived representations, scoped DOM behavior, and external Effect services need distinct contracts, not a universal plugin context.
 
-[Our rat-stack adaptation](docs/rat-stack-reference.md) records adopted patterns, deliberate differences, and enforcement gaps. Local product decisions take precedence over template-specific choices:
+[Our rat-stack adaptation](docs/guides/rat-stack-reference.md) records adopted patterns, deliberate differences, and enforcement gaps. Local product decisions take precedence over template-specific choices:
 
 - Bun workspaces, not pnpm or Turborepo.
 - Foldkit and Effect as the only direct external application dependencies.
@@ -32,7 +32,7 @@ Before designing plugin contracts, registration, custom-component lifetimes, or 
 
 Before changing editor state, name its authoritative representation, derived views, and writer. `Model.source` is authoritative; parsing and DOM content are derived, and `update` owns edits and history. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current visual subset is paragraphs and bold, not full CommonMark/GFM or a registered plugin engine.
 
-Visual mode has one editing host. Do not turn paragraphs back into separate contenteditable inputs. JSON is a versioned, read-only representation plugin, not another state store. Future JSON import or editing must decode its declared format and dispatch core transactions. [The architecture visual](docs/architecture.html) distinguishes implemented contracts from planned plugin capabilities.
+Visual mode has one editing host. Do not turn paragraphs back into separate contenteditable inputs. JSON is a versioned, read-only representation plugin, not another state store. Future JSON import or editing must decode its declared format and dispatch core transactions. [The architecture visual](docs/blueprint/architecture.html) distinguishes implemented contracts from planned plugin capabilities.
 
 Use Effect for typed failures, asynchronous work, services, and resource lifetimes. Keep pure transformations pure. Execute Effects through the host's existing runtime boundary, not inside plugins or reducers. Decode external values with Schema at their boundary instead of using assertions.
 

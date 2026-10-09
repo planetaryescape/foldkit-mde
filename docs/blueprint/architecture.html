@@ -463,9 +463,13 @@
 │   │       └── json.test.ts
 │   └── anti-slop/  (vendored dev tooling)
 ├── docs/
-│   ├── architecture.html  (this page)
-│   ├── effect-state-machines-research.md
-│   └── rat-stack-reference.md
+│   ├── README.md  (documentation index)
+│   ├── blueprint/architecture.html  (this page)
+│   ├── research/  (source investigations)
+│   ├── handoffs/  (historical proposals)
+│   ├── guides/  (contributor references)
+│   ├── implementation-plan.md
+│   └── implementation-log.md
 ├── package.json  (workspaces + catalog)
 ├── bun.lock
 ├── tsconfig.json / tsconfig.base.json
@@ -1262,8 +1266,8 @@ apps/playground/
           <strong>Consumer API:</strong> <code>Editor.make({ key, seed, policy })</code> supplies
           the complete integration. <code>Editor.project(model, markdown | json)</code> returns
           typed content and its local revision, not a save receipt. Follow
-          <a href="../apps/playground/src/main.ts">the compiled playground composition</a> or
-          <a href="../README.md#local-saving-package-usage">the current usage guide</a>.
+          <a href="../../apps/playground/src/main.ts">the compiled playground composition</a> or
+          <a href="../../README.md#local-saving-package-usage">the current usage guide</a>.
         </div>
         <div class="grid">
           <article class="card">

@@ -33,8 +33,13 @@ packages/
   persistence/      Effect DocumentStore, native IndexedDB, memory Layer, autosave reducer
   anti-slop/        Vendored development-only Oxlint plugins and tests
 docs/
-  effect-state-machines-research.md
-  plugin-system-references.md
+  README.md         Documentation index and reading order
+  blueprint/        Product contracts, architecture visual, decisions
+  research/         Source investigations and historical baselines
+  handoffs/         Retained typed design proposals
+  guides/           Engineering and plugin reference guides
+  implementation-plan.md
+  implementation-log.md
   references/       Pinned, read-only plugin source snapshots, not workspaces
 ```
 
@@ -107,7 +112,7 @@ The core remains usable without storage. The persistent integration wraps it and
 - `Editor.project(model, markdown)` and `Editor.project(model, json)` return `Option<ContentOutput<T>>` with key, local revision, representation ID, and typed content. They can include unsaved accepted source; projection is not a save receipt. HTML is not implemented.
 - For a host-controlled close, dispatch `Message.Persistence({ message: Event.Flush({ id }) })` using the Schema constructors and observe `FlushCompleted`. Outcomes are `Flushed`, `FlushFailed`, or `FlushBusy`. Wait before unmounting; unload is not a reliable asynchronous flush boundary. Restart resets session history and caret.
 
-The reducer, adapter, and integration contracts are mapped to files in [architecture section 09](docs/architecture.html#persistence). No action journal, SQLite, remote saving, or gbfm integration was added.
+The reducer, adapter, and integration contracts are mapped to files in [architecture section 09](docs/blueprint/architecture.html#persistence). No action journal, SQLite, remote saving, or gbfm integration was added.
 
 ### Architecture to work toward
 
@@ -117,7 +122,7 @@ The Foldkit package owns raw and visual surfaces, input translation, DOM selecti
 
 Markdown source is authoritative. The small parser derives paragraph and inline spans. The continuous DOM adapter maps ranges across blocks, preserves unchanged block source and adjacent original separators, and translates structural edits into changed source. It pauses input dispatch during composition. Foldkit mounts own listener cleanup through Effect's scoped acquisition. The playground executes synchronization commands through its existing runtime boundary.
 
-[Architecture and package usage](docs/architecture.html) maps package imports to the actual file tree, traces browser input through the reducer and synchronization command, and distinguishes implemented contracts from planned capabilities. It includes [headless and Foldkit consumer recipes](docs/architecture.html#usage), the state/message rules, and the gaps that remain before gbfm embedding. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection) → transaction`. The host selects implementations. JSON is implemented in `packages/plugins`; bold remains directly wired until dynamic registration is added.
+[Architecture and package usage](docs/blueprint/architecture.html) maps package imports to the actual file tree, traces browser input through the reducer and synchronization command, and distinguishes implemented contracts from planned capabilities. It includes [headless and Foldkit consumer recipes](docs/blueprint/architecture.html#usage), the state/message rules, and the gaps that remain before gbfm embedding. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection) → transaction`. The host selects implementations. JSON is implemented in `packages/plugins`; bold remains directly wired until dynamic registration is added.
 
 Plugin responsibilities differ:
 
@@ -132,13 +137,15 @@ Try the playground before expanding the plugin contract. The next design decisio
 
 ## Research and local references
 
-[Plugin-system design references](docs/plugin-system-references.md) vendors curated snapshots of [executor](https://github.com/UsefulSoftwareCo/executor) and the four plugin references named in its README: OpenCode, OpenClaw, EmDash, and Pi. Contracts, registration/lifecycle implementations, and examples/tests live under `docs/references/`, with pinned commits, original MIT licenses, and a checksum manifest. The guide maps useful patterns to our packages and identifies complexity we should not copy. Read it before designing plugin contracts, custom-component lifetimes, or Effect adapters. These are reference sources, not dependencies or runnable workspaces.
+Start with [the documentation index](docs/README.md) for the blueprint, decision log, implementation plan, and delivery history. The repository-local [maintaining-blueprints skill](.agents/skills/maintaining-blueprints/SKILL.md) defines how to keep them current.
 
-[Effect state machine research](docs/effect-state-machines-research.md) preserves the original version-specific investigation and records the chosen Schema + Match direction separately.
+[Plugin-system design references](docs/guides/plugin-system-references.md) vendors curated snapshots of [executor](https://github.com/UsefulSoftwareCo/executor) and the four plugin references named in its README: OpenCode, OpenClaw, EmDash, and Pi. Contracts, registration/lifecycle implementations, and examples/tests live under `docs/references/`, with pinned commits, original MIT licenses, and a checksum manifest. The guide maps useful patterns to our packages and identifies complexity we should not copy. Read it before designing plugin contracts, custom-component lifetimes, or Effect adapters. These are reference sources, not dependencies or runnable workspaces.
 
-[Persistence research](docs/persistence-design.md) verifies Foldkit's in-memory debugging history and compares checkpoints with durable action logs. The revised [typed handoff](docs/persistence-tech-spec.md) records editor-owned primary local saving and recovery. Their proposed examples are historical design material; the implemented contracts and usage are documented above and in the architecture map. Native IndexedDB was selected without adding a direct external dependency.
+[Effect state machine research](docs/research/effect-state-machines.md) preserves the original version-specific investigation and records the chosen Schema + Match direction separately.
 
-[Rat-stack reference](docs/rat-stack-reference.md) records the patterns we adopt, deliberate differences, and enforcement gaps. [AGENTS.md](AGENTS.md) requires reading its relevant rules and skills before coding. We retain Bun, Foldkit, and Schema + Match. Future infrastructure uses Alchemy outside the editor core, when needed.
+[Persistence research](docs/research/persistence-design.md) verifies Foldkit's in-memory debugging history and compares checkpoints with durable action logs. The revised [typed handoff](docs/handoffs/persistence-tech-spec.md) records editor-owned primary local saving and recovery. Their proposed examples are historical design material; the implemented contracts and usage are documented above and in the architecture map. Native IndexedDB was selected without adding a direct external dependency.
+
+[Rat-stack reference](docs/guides/rat-stack-reference.md) records the patterns we adopt, deliberate differences, and enforcement gaps. [AGENTS.md](AGENTS.md) requires reading its relevant rules and skills before coding. We retain Bun, Foldkit, and Schema + Match. Future infrastructure uses Alchemy outside the editor core, when needed.
 
 Useful read-only references, relative to this repository:
 

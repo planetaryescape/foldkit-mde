@@ -1,24 +1,24 @@
 # Editor-owned local saving and recovery: typed architecture handoff
 
-Status: design handoff retained for rationale. The first native IndexedDB slice is now implemented following separate owner authorization. The contracts and code blocks below remain the original proposal, not compiled API documentation. See [current package usage](../README.md#local-saving-package-usage) and [the implemented file map](architecture.html#persistence).
+Status: historical design handoff retained for rationale. The first native IndexedDB slice is now implemented following separate owner authorization. The contracts and code blocks below remain the original proposal, not compiled API documentation. See [current package usage](../../README.md#local-saving-package-usage) and [the implemented file map](../blueprint/architecture.html#persistence). Baseline statements below describe the supplied design snapshot, not today's repository.
 
 ## Summary
 
 Add an opt-in editor integration that owns primary local document saving, draft recovery, autosave, and typed content output through an Effect `DocumentStore`, native IndexedDB, and a pure autosave lifecycle. Persist versioned Markdown checkpoints, not editor actions or the entire Model. Foldkit remains the only editor event loop and executes Effects through the host runtime. The host configures and mounts the integration; it does not implement the save lifecycle or format conversion.
 
-This spec turns [the source-grounded design](persistence-design.md) into contracts and execution paths. APIs, schemas, exports, files, and code below were **proposed** during design. Code blocks are TypeScript architecture pseudocode, not compiled implementations. The implementation uses a unique session ID for correlation, version-1 latest/previous envelopes, explicit host timing/size policy, and the existing representation contract for typed output. Recovery is read-only preview/export; document switching and recovery-as-new are not implemented.
+This spec turns [the source-grounded design](../research/persistence-design.md) into contracts and execution paths. APIs, schemas, exports, files, and code below were **proposed** during design. Code blocks are TypeScript architecture pseudocode, not compiled implementations. The implementation uses a unique session ID for correlation, version-1 latest/previous envelopes, explicit host timing/size policy, and the existing representation contract for typed output. Recovery is read-only preview/export; document switching and recovery-as-new are not implemented.
 
 Confirmed ownership: local storage is both the primary local saved copy and draft recovery, owned by the editor integration. Backend saving and publishing remain host concerns. Working assumptions for this first slice: one mounted editor, asynchronous autosave, source-only recovery, reset undo/caret/mode on restart, and conflict refusal rather than automatic overwrite. Loss tolerance and identity configuration remain owner decisions. Browser-local primary storage is not guaranteed retention or backup.
 
 This supersedes the earlier host-assembled, draft-only proposal. AGENTS.md and the architecture page now distinguish host-owned external destination policy/runtime composition from editor-owned local saving mechanisms and UX.
 
-## Context / Current State
+## Context / Design snapshot state
 
-- [`core/editor.ts`](../packages/core/src/editor.ts): authoritative source and pure exhaustive `update`; past/future are session snapshots.
-- [`editor/surface.ts`](../packages/editor/src/surface.ts): DOM input Messages, composition suppression, mount cleanup, and `Synchronize` Command.
-- [`editor/document.ts`](../packages/editor/src/document.ts): visual DOM projection/readback and split transactions. Not a persistence writer.
-- [`editor/view.ts`](../packages/editor/src/view.ts): unbranded child view, fixed surface ID, no public parent-message boundary.
-- [`playground/main.ts`](../apps/playground/src/main.ts): runtime composition and update wrapper; no storage.
+- [`core/editor.ts`](../../packages/core/src/editor.ts): authoritative source and pure exhaustive `update`; past/future are session snapshots.
+- [`editor/surface.ts`](../../packages/editor/src/surface.ts): DOM input Messages, composition suppression, mount cleanup, and `Synchronize` Command.
+- [`editor/document.ts`](../../packages/editor/src/document.ts): visual DOM projection/readback and split transactions. Not a persistence writer.
+- [`editor/view.ts`](../../packages/editor/src/view.ts): unbranded child view, fixed surface ID, no public parent-message boundary.
+- [`playground/main.ts`](../../apps/playground/src/main.ts): runtime composition and update wrapper; no storage.
 
 Foldkit 0.167.0 DevTools has bounded in-memory Messages and sparse Model keyframes. Replay returns `update.model` without executing Commands. HMR preservation is Vite process-memory support. Neither provides a durable journal. The current Bun host does not enable default Vite recording. Exact source citations and inspection limits are in the design document.
 
@@ -646,4 +646,4 @@ After implementation, run `bun run precommit`, `bun run build`, existing editor 
 5. **Durability:** previous checkpoints provide bounded corruption recovery, not protection from browser clearing/eviction or origin changes. Permission and explicit export reduce risk but are not automatic backup. Guaranteed sole-copy retention would require a separate backup/destination contract.
 6. **Implementation validation:** contracts are proposed, not compiled. The current orb's Bun 1.3.10 cannot install the supplied Bun 1.4.0 lockfile. This is a design handoff, not a passing build or storage guarantee.
 
-Design sources and rules: [persistence research](persistence-design.md), [local rat-stack adaptation](rat-stack-reference.md), Effect service-design and coding standards, and the TDD vertical-slice workflow. No new implementation or dependency change accompanies this spec.
+Design sources and rules: [persistence research](../research/persistence-design.md), [local rat-stack adaptation](../guides/rat-stack-reference.md), Effect service-design and coding standards, and the TDD vertical-slice workflow. No new implementation or dependency change accompanied the original spec.

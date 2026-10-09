@@ -5,10 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/view.ts",
+    "./persistence": "./src/persistence.ts",
     "./style.css": "./src/editor.css"
   },
+  "scripts": { "test": "bun test" },
   "dependencies": {
     "@foldkit-mde/core": "workspace:*",
+    "@foldkit-mde/persistence": "workspace:*",
     "effect": "catalog:",
     "foldkit": "catalog:"
   }

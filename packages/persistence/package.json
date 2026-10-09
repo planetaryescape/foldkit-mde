@@ -1,0 +1,14 @@
+{
+  "name": "@foldkit-mde/persistence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./store": "./src/store.ts",
+    "./memory": "./src/memory.ts",
+    "./indexed-db": "./src/indexed-db.ts",
+    "./autosave": "./src/autosave.ts"
+  },
+  "scripts": { "test": "bun test" },
+  "dependencies": { "effect": "catalog:" }
+}

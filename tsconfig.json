@@ -9,5 +9,5 @@
     "noEmit": true,
     "types": ["bun"]
   },
-  "include": ["packages/core/src/**/*.ts", "packages/editor/src/**/*.ts", "packages/plugins/src/**/*.ts", "apps/*/src/**/*.ts"]
+  "include": ["packages/core/src/**/*.ts", "packages/editor/src/**/*.ts", "packages/plugins/src/**/*.ts", "packages/persistence/src/**/*.ts", "apps/*/src/**/*.ts"]
 }

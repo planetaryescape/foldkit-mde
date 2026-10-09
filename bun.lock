@@ -19,7 +19,9 @@
       "dependencies": {
         "@foldkit-mde/core": "workspace:*",
         "@foldkit-mde/editor": "workspace:*",
+        "@foldkit-mde/persistence": "workspace:*",
         "@foldkit-mde/plugins": "workspace:*",
+        "effect": "catalog:",
         "foldkit": "catalog:",
       },
     },
@@ -45,8 +47,16 @@
       "version": "0.0.0",
       "dependencies": {
         "@foldkit-mde/core": "workspace:*",
+        "@foldkit-mde/persistence": "workspace:*",
         "effect": "catalog:",
         "foldkit": "catalog:",
+      },
+    },
+    "packages/persistence": {
+      "name": "@foldkit-mde/persistence",
+      "version": "0.0.0",
+      "dependencies": {
+        "effect": "catalog:",
       },
     },
     "packages/plugins": {
@@ -86,6 +96,8 @@
     "@foldkit-mde/core": ["@foldkit-mde/core@workspace:packages/core"],
 
     "@foldkit-mde/editor": ["@foldkit-mde/editor@workspace:packages/editor"],
+
+    "@foldkit-mde/persistence": ["@foldkit-mde/persistence@workspace:packages/persistence"],
 
     "@foldkit-mde/playground": ["@foldkit-mde/playground@workspace:apps/playground"],
 

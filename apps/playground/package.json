@@ -6,12 +6,16 @@
   "scripts": {
     "dev": "bun src/server.ts",
     "build": "bun build src/index.html --outdir dist --target browser --minify",
-    "test:browser": "agent-browser --session mde-test open http://127.0.0.1:3017 && agent-browser --session mde-test eval --stdin < test/browser-check.js"
+    "test:browser": "agent-browser --session mde-test open http://127.0.0.1:3017 && agent-browser --session mde-test eval --stdin < test/browser-check.js",
+    "test:storage": "agent-browser --session mde-storage open http://127.0.0.1:3017/persistence-check && agent-browser --session mde-storage wait --fn 'document.querySelector(\"#result\").dataset.result !== undefined' && agent-browser --session mde-storage eval 'if (document.querySelector(\"#result\").dataset.result !== \"passed\") throw new Error(document.querySelector(\"#result\").textContent); document.querySelector(\"#result\").textContent'",
+    "test:persistence": "agent-browser --session mde-persistence open http://127.0.0.1:3017 && agent-browser --session mde-persistence eval --stdin < test/persistence-check.js"
   },
   "dependencies": {
     "@foldkit-mde/core": "workspace:*",
     "@foldkit-mde/editor": "workspace:*",
+    "@foldkit-mde/persistence": "workspace:*",
     "@foldkit-mde/plugins": "workspace:*",
+    "effect": "catalog:",
     "foldkit": "catalog:"
   }
 }

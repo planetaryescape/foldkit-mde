@@ -1,6 +1,7 @@
-import { init, Model, type Message, update } from '@foldkit-mde/core'
-import { Synchronize, view as editorView } from '@foldkit-mde/editor'
+import * as Editor from '@foldkit-mde/editor/persistence'
+import * as IndexedDb from '@foldkit-mde/persistence/indexed-db'
 import { json } from '@foldkit-mde/plugins/json'
+import { Option } from 'effect'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
 
@@ -13,7 +14,13 @@ Switch to Markdown to see the source. Your edits and undo history travel with yo
 ::music{type="album" id="late-night-frequencies"}
 `
 
-const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
+const editor = Editor.make({
+  key: { namespace: 'playground', documentId: 'welcome' },
+  seed: source,
+  policy: { quietMs: 500, maximumMs: 2000 },
+})
+
+const view = (model: Editor.Model, h: HtmlBuilder<Editor.Message>): Document => ({
   title: 'Foldkit MDE | Playground',
   body: h.main(
     [h.Class('playground')],
@@ -26,7 +33,7 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
           h.p([h.Class('intro')], ['A small editor, built from the source outward.']),
         ],
       ),
-      editorView(model, h),
+      Editor.view(model, h),
       h.details(
         [h.Class('document-inspector')],
         [
@@ -34,7 +41,12 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
           h.p([], ['A read-only plugin output from the same Markdown document.']),
           h.pre(
             [h.AriaLabel('JSON document')],
-            [JSON.stringify(json.project(model.source), null, 2)],
+            [
+              Option.match(Editor.project(model, json), {
+                onNone: () => 'Document unavailable until it has loaded.',
+                onSome: (output) => JSON.stringify(output.content, null, 2),
+              }),
+            ],
           ),
         ],
       ),
@@ -42,7 +54,7 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
         [h.Class('playground-footer')],
         [
           h.span([], ['foldkit-mde / 0.0.0']),
-          h.span([], ['First editing slice. Changes are not saved.']),
+          h.span([], ['Autosaves in this browser. Export a copy for safekeeping.']),
         ],
       ),
     ],
@@ -51,20 +63,17 @@ const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
 
 Runtime.run(
   Runtime.makeApplication({
-    Model,
-    init: () => ({ model: init(source), commands: [] }),
-    update: (model, message) => {
-      const next = update(model, message)
-
-      return {
-        model: next,
-        commands:
-          next.source !== model.source || next.mode !== model.mode
-            ? [Synchronize({ source: next.source, mode: next.mode, selection: next.selection })]
-            : [],
-      }
-    },
+    Model: Editor.Model,
+    Flags: Editor.Startup,
+    resources: IndexedDb.layer({
+      openFactory: () => globalThis.indexedDB,
+      databaseName: 'foldkit-mde-playground',
+      sourceLimit: 1_048_576,
+    }),
+    init: editor.init,
+    update: editor.update,
     view,
     container: document.getElementById('root'),
   }),
+  { flags: editor.load },
 )

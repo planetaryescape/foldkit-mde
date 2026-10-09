@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { "./json": "./src/json.ts" },
+  "exports": { "./json": "./src/json.ts", "./markdown": "./src/markdown.ts" },
   "scripts": { "test": "bun test" },
   "dependencies": { "@foldkit-mde/core": "workspace:*", "effect": "catalog:" }
 }

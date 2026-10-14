@@ -24,13 +24,13 @@ Before designing plugin contracts, registration, custom-component lifetimes, or 
 
 - `packages/core` owns document state, selection, transactions, history, and pure transitions. It imports neither Foldkit, browser APIs, apps, nor provider adapters.
 - `packages/editor` owns Foldkit views and browser input, selection, focus, and composition integration. It depends on core.
-- `packages/plugins` owns built-in format representations. Core owns their contracts, not concrete output formats. The host chooses plugins.
+- `packages/plugins` owns built-in formatting and representations. Core owns their contracts, not concrete operations or output formats. The host chooses plugins.
 - `packages/persistence` owns the DocumentStore contract, atomic checkpoint adapters, and pure autosave lifecycle. It imports neither core, Foldkit, nor apps.
 - `apps/playground` owns runtime startup and composition. Packages never import apps or reach into sibling workspace source through relative paths.
 - Formatting plugins return pure transactions. Rendering and custom-component plugins use explicit contracts. Prove one operation before introducing a general plugin framework.
 - The opt-in editor persistence integration owns local loading, autosave, retry, flush, recovery controls, and typed representation output. The host supplies stable identity, policy, a storage Layer, and Foldkit runtime composition. Backend saving, publishing, and gbfm-specific integrations remain host-owned. Do not modify gbfm without a separate request.
 
-Before changing editor state, name its authoritative representation, derived views, and writer. `Model.source` is authoritative; parsing and DOM content are derived, and `update` owns edits and history. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current visual subset is paragraphs and bold, not full CommonMark/GFM or a registered plugin engine.
+Before changing editor state, name its authoritative representation, derived views, and writer. `Model.source` is authoritative; parsing and DOM content are derived, and `update` owns edits and history. Both raw and editable visual surfaces must use the same transaction and history path. Preserve unsupported Markdown across mode switches. The current visual subset is paragraphs, bold and plain-label links, not full CommonMark/GFM. Formatting tools are statically host-selected, not dynamically loaded.
 
 Visual mode has one editing host. Do not turn paragraphs back into separate contenteditable inputs. JSON is a versioned, read-only representation plugin, not another state store. Future JSON import or editing must decode its declared format and dispatch core transactions. [The architecture visual](docs/blueprint/architecture.html) distinguishes implemented contracts from planned plugin capabilities.
 

@@ -445,7 +445,7 @@
 │   │   ├── package.json
 │   │   └── src/
 │   │       ├── <a class="c" href="#core-files">editor.ts</a>
-│   │       ├── <a class="c" href="#core-files">bold.ts</a>
+│   │       ├── <a class="c" href="#core-files">transaction.ts</a>
 │   │       ├── <a class="c" href="#core-files">markdown.ts</a>
 │   │       ├── <a class="c" href="#core-files">plugins.ts</a>
 │   │       └── editor.test.ts
@@ -453,12 +453,16 @@
 │   │   ├── package.json
 │   │   └── src/
 │   │       ├── <a class="e" href="#editor-files">view.ts</a>
+│   │       ├── <a class="e" href="#editor-files">formatting.ts</a>
+│   │       ├── <a class="e" href="#editor-files">formatting-input.ts</a>
 │   │       ├── <a class="e" href="#editor-files">surface.ts</a>
 │   │       ├── <a class="e" href="#editor-files">document.ts</a>
 │   │       └── <a class="e" href="#editor-files">editor.css</a>
 │   ├── plugins/
 │   │   ├── package.json
 │   │   └── src/
+│   │       ├── <a class="c" href="#plugin-files">bold.ts</a>
+│   │       ├── <a class="c" href="#plugin-files">link.ts</a>
 │   │       ├── <a class="c" href="#plugin-files">json.ts</a>
 │   │       └── json.test.ts
 │   └── anti-slop/  (vendored dev tooling)
@@ -485,12 +489,12 @@
                   <code>update</code>, transaction application, undo/redo.
                 </li>
                 <li>
-                  <code>bold.ts</code>: Selection/Transaction schemas and pure bold range
-                  replacement.
+                  <code>transaction.ts</code>: Selection/Transaction schemas. Formatting
+                  implementations live in plugins.
                 </li>
                 <li>
-                  <code>markdown.ts</code>: small paragraph/bold parser, raw-block fallback, source
-                  ↔ visual offsets.
+                  <code>markdown.ts</code>: small paragraph/bold/link parser, raw-block fallback,
+                  source ↔ visual offsets.
                 </li>
                 <li>
                   <code>plugins.ts</code>: representation and formatting interfaces, not a registry.
@@ -502,8 +506,13 @@
               <h3>Browser boundary</h3>
               <ul>
                 <li>
-                  <code>view.ts</code>: toolbar, modes, status, mount point; exports
-                  <code>view</code> and <code>Synchronize</code>.
+                  <code>view.ts</code>: <code>make(tools)</code> returns matching view/update
+                  functions; toolbar, modes, status and mount point.
+                </li>
+                <li>
+                  <code>formatting.ts</code>: Button/Input controls, source-and-selection-bound
+                  requests and pure plugin dispatch. <code>formatting-input.ts</code>: keyed form,
+                  URL draft and scoped submit listeners.
                 </li>
                 <li>
                   <code>surface.ts</code>: Observe mount, scoped listeners, message emission,
@@ -537,14 +546,15 @@
           </article>
           <article class="card core" id="plugin-files">
             <div class="label">packages/plugins/src</div>
-            <h3>Concrete output formats</h3>
+            <h3>Concrete formatting and output formats</h3>
             <p>
               <code>json.ts</code> declares the versioned JsonDocument Schema and implements
               <code>json.project(source)</code> with core parsing.
             </p>
             <p>
-              There is no HTML or custom-component implementation here yet. Bold currently lives in
-              core, not in this workspace.
+              <code>bold.ts</code> and <code>link.ts</code> return pure transactions. Link takes a
+              string destination and reads the selected label's existing URL. There is no HTML or
+              custom-component implementation yet.
             </p>
           </article>
         </div>
@@ -617,10 +627,11 @@ Model {
                 </td>
               </tr>
               <tr>
-                <td><code>ToggledBold</code></td>
+                <td><code>Formatted</code> (editor Message)</td>
                 <td>Toolbar / keyboard</td>
                 <td>
-                  Call the directly wired bold operation, then apply its transaction if supported.
+                  Reject stale source/selection or an unselected tool, invoke its pure formatter,
+                  then dispatch core Applied. This request is not a core Message.
                 </td>
               </tr>
               <tr>
@@ -767,14 +778,15 @@ Model {
         <h2>Plugins either describe an edit or derive an output.</h2>
         <div class="grid">
           <article class="card core">
-            <span class="badge">Existing interface + bold operation</span>
+            <span class="badge">Implemented: host-selected bold and links</span>
             <h3>Formatting</h3>
             <pre>
-interface FormattingPlugin {
+interface FormattingPlugin&lt;Input = void&gt; {
   readonly id: string
   readonly apply: (
     source: string,
-    selection: Selection
+    selection: Selection,
+    input: Input
   ) => Transaction | undefined
 }</pre>
             <p>
@@ -865,11 +877,12 @@ interface Representation&lt;Output&gt; {
           <div class="code">
             <div class="label">A / Headless edit + JSON / runnable Bun TypeScript</div>
             <pre id="headless-example">
-import { bold, init, Message, update } from '@foldkit-mde/core'
+import { init, Message, update } from '@foldkit-mde/core'
+import { bold } from '@foldkit-mde/plugins/bold'
 import { json } from '@foldkit-mde/plugins/json'
 
 const model = init('A long track.')
-const transaction = bold(model.source, { start: 2, end: 6 })
+const transaction = bold.apply(model.source, { start: 2, end: 6 })
 
 const next = transaction
   ? update(model, Message.cases.Applied.make({ transaction }))
@@ -934,16 +947,21 @@ JSON:
           <div class="code">
             <div class="label">Original editing-only composition / complete browser entry</div>
             <pre id="consumer-main">
-import { init, Model, type Message, update } from '@foldkit-mde/core'
-import { Synchronize, view as editorView } from '@foldkit-mde/editor'
+import { init } from '@foldkit-mde/core'
+import { Model, Message, make, Synchronize } from '@foldkit-mde/editor'
+import { bold } from '@foldkit-mde/plugins/bold'
 import { json } from '@foldkit-mde/plugins/json'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
 
+const editor = make([
+  { kind: 'Button', label: 'Toggle bold', plugin: bold, shortcut: 'b', inputType: 'formatBold' },
+])
+
 const view = (model: Model, h: HtmlBuilder&lt;Message&gt;): Document => ({
   title: 'My Markdown editor',
   body: h.main([], [
-    editorView(model, h),
+    editor.view(model, h),
     h.pre([], [JSON.stringify(json.project(model.source), null, 2)]),
   ]),
 })
@@ -953,7 +971,7 @@ Runtime.run(
     Model,
     init: () => ({ model: init('A long track.'), commands: [] }),
     update: (model, message) => {
-      const next = update(model, message)
+      const next = editor.update(model, message)
 
       return {
         model: next,
@@ -991,17 +1009,19 @@ main.ts
           <div class="card">
             <h3>C / Supply a formatting operation today</h3>
             <pre id="formatting-example">
-import { bold } from '@foldkit-mde/core'
-import type { FormattingPlugin } from '@foldkit-mde/core/plugins'
+import { make } from '@foldkit-mde/editor'
+import { link, linkInput } from '@foldkit-mde/plugins/link'
 
-export const boldPlugin: FormattingPlugin = {
-  id: 'bold',
-  apply: bold,
-}</pre>
+const editor = make([{
+  kind: 'Input', label: 'Apply link', plugin: link,
+  inputLabel: 'Link destination', readInput: linkInput,
+  hint: 'Select a plain label. Enter a safe URL, or leave empty to remove.',
+}])</pre>
             <p>
-              Call <code>boldPlugin.apply(source, selection)</code>, then dispatch
-              <code>Applied</code> as in recipe A. The wrapper satisfies the contract; it does not
-              register a toolbar action.
+              Use the returned view/update together. The persistent integration accepts the same
+              tools in <code>make({ key, seed, policy, formatting })</code> and returns its
+              configured view. Headless callers can still invoke a plugin and dispatch Applied
+              directly.
             </p>
           </div>
         </div>
@@ -1042,16 +1062,17 @@ export const boldPlugin: FormattingPlugin = {
                 <code>mde-surface</code> ID. Multiple editors are not supported.
               </li>
               <li>
-                <strong>Parent composition:</strong> the view is typed to core Message. A
-                child-message mapping/output boundary has not been packaged.
+                <strong>Parent composition:</strong> use the configured editor Message schema and
+                returned view/update. The persistent wrapper maps child Messages; multiple editor
+                identities remain unsupported.
               </li>
               <li>
-                <strong>Plugin routing:</strong> replace direct bold wiring with host-selected
-                actions, without moving history into plugins.
+                <strong>Plugin routing:</strong> static host-selected Button/Input actions are
+                implemented. Dynamic loading and custom-component lifetimes still need contracts.
               </li>
               <li>
-                <strong>Syntax coverage:</strong> headings, lists, links, music/media nodes, and
-                complete formatting semantics remain outside the editable subset.
+                <strong>Syntax coverage:</strong> headings, lists, nested link marks, music/media
+                nodes, and complete formatting semantics remain outside the editable subset.
               </li>
               <li>
                 <strong>Packaging:</strong> build/publish policy and an external consumer contract

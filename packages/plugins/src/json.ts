@@ -7,7 +7,13 @@ const Span = Schema.Struct({ start: Schema.Int, end: Schema.Int })
 const Node = Schema.TaggedUnion({
   Paragraph: {
     span: Span,
-    children: Schema.Array(Schema.Struct({ text: Schema.String, bold: Schema.Boolean })),
+    children: Schema.Array(
+      Schema.Struct({
+        text: Schema.String,
+        bold: Schema.Boolean,
+        href: Schema.optionalKey(Schema.String),
+      }),
+    ),
   },
   Raw: { span: Span, source: Schema.String },
 })
@@ -29,7 +35,11 @@ export const json: Representation<JsonDocument> = {
       block.editable
         ? Node.cases.Paragraph.make({
             span: { start: block.start, end: block.end },
-            children: block.inlines.map((inline) => ({ text: inline.text, bold: inline.bold })),
+            children: block.inlines.map((inline) => {
+              const child = { text: inline.text, bold: inline.bold }
+
+              return inline.href === undefined ? child : { ...child, href: inline.href }
+            }),
           })
         : Node.cases.Raw.make({
             span: { start: block.start, end: block.end },

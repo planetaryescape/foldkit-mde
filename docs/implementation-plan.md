@@ -1,10 +1,10 @@
 # Implementation plan
 
-Status: documentation organization is complete locally; the next editor behavior slice is not selected. This plan does not authorize application changes. Existing implementation is summarized in [the log](implementation-log.md) and [the overview](blueprint/00-overview.md).
+Status: S01 is committed and pushed. The owner authorized host-selected formatting and links through an open PR. Existing implementation is summarized in [the log](implementation-log.md) and [the overview](blueprint/00-overview.md).
 
 ## S01: Make documentation navigable and maintainable
 
-Status: complete locally. Delivery is not yet pushed.
+Status: committed and pushed.
 
 Scope: repository-local skill, indexed blueprint, research/handoff/guide separation, stable decisions, and an implementation log. No runtime changes or vendored-source edits.
 
@@ -16,12 +16,12 @@ Docs: [index](README.md), [blueprint](blueprint/README.md), [skill](../.agents/s
 
 Completion evidence: [documentation organization entry](implementation-log.md#documentation-organization).
 
-## S02: Select the next editing experience to prove
+## S02: Host-selected formatting and links
 
-Status: awaiting owner feedback from the playground. Depends on D002 and D003.
+Status: implemented and verified locally on `feat/formatting-plugins-links`; PR delivery pending. Depends on D002 and D003.
 
-Candidate outcomes already named in the usage guide: stronger selection behavior, headings/lists/links, or a gbfm custom-component plugin. They are alternatives, not three approved workstreams.
+Outcome: the host selects pure bold/link plugins and their editor-owned controls. Users insert, replace and remove plain-label links in both modes through shared history and autosave. Core must not import concrete formatting implementations.
 
-Before implementation, choose one observable user outcome, inspect its owning core/editor/plugin boundary, and define source preservation, history, failure, and browser acceptance checks. Update the blueprint only for that capability. Do not introduce a general registry simply to prepare for all candidates.
+Acceptance: typed plugin inputs, exact surrounding source preservation, safe destinations, stale-request rejection, selection restoration, JSON destinations and no extra runtime dependency. Check public pure operations and real browser input/readback, then the existing persistence regressions. Inspect desktop, tablet and mobile layouts. No dynamic loading, full CommonMark, custom components or gbfm edits.
 
 Local saving policy also remains consumer-specific: review timing, loss tolerance, identity, and byte limits before adopting the editor in gbfm. Actual gbfm integration needs a separate request and acceptance criteria.

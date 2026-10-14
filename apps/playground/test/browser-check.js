@@ -65,6 +65,79 @@ async function checkEditor() {
   await action('Redo')
   await until(() => source() === fixture.replace('**longer**', 'longer'))
 
+  const linkFixture = 'A longer track.\n\n::music{id="keep"}\n'
+  await setSource(linkFixture)
+  const linkParagraph = document.querySelector('.mde-paragraph')
+  select(linkParagraph, linkParagraph.firstChild, 2, 8)
+  await until(() => !button('Apply link').disabled)
+  let destination = document.querySelector('[aria-label="Link destination"]')
+  destination.focus()
+  destination.value = 'javascript:evil'
+  destination.dispatchEvent(new Event('input', { bubbles: true }))
+  destination.closest('form').requestSubmit()
+  assert(
+    !destination.validity.valid && source() === linkFixture,
+    'Unsafe URL must refuse without an edit',
+  )
+  destination.value = '/mixes/night'
+  destination.dispatchEvent(new Event('input', { bubbles: true }))
+  destination.closest('form').requestSubmit()
+  const linked = 'A [longer](/mixes/night) track.\n\n::music{id="keep"}\n'
+  await until(() => source() === linked)
+  const anchor = document.querySelector('.mde-paragraph a')
+  assert(
+    anchor?.textContent === 'longer' && anchor.getAttribute('href') === '/mixes/night',
+    'Link must render its label and destination',
+  )
+  const beforeClick = location.href
+  anchor.click()
+  assert(location.href === beforeClick, 'Editing a link must not navigate away')
+  await until(
+    () =>
+      JSON.parse(document.querySelector('[aria-label="JSON document"]').textContent).nodes[0]
+        .children[1].href === '/mixes/night',
+  )
+  select(anchor, anchor.firstChild, 0, 6)
+  await until(
+    () => document.querySelector('[aria-label="Link destination"]').value === '/mixes/night',
+  )
+  destination = document.querySelector('[aria-label="Link destination"]')
+  destination.focus()
+  destination.value = 'https://gbfm.co.za/mixes'
+  destination.dispatchEvent(new Event('input', { bubbles: true }))
+  destination.closest('form').requestSubmit()
+  await until(() => source() === linked.replace('/mixes/night', 'https://gbfm.co.za/mixes'))
+  await mode('Markdown')
+  assert(
+    document.querySelector('textarea').selectionStart === 3 &&
+      document.querySelector('textarea').selectionEnd === 9,
+    'Link formatting must retain source label selection',
+  )
+  await action('Undo')
+  await until(() => source() === linked)
+  const rawLink = document.querySelector('textarea')
+  rawLink.focus()
+  rawLink.setSelectionRange(3, 9)
+  document.dispatchEvent(new Event('selectionchange'))
+  await until(
+    () => document.querySelector('[aria-label="Link destination"]').value === '/mixes/night',
+  )
+  destination = document.querySelector('[aria-label="Link destination"]')
+  destination.focus()
+  destination.value = ''
+  destination.dispatchEvent(new Event('input', { bubbles: true }))
+  destination.closest('form').requestSubmit()
+  await until(() => source() === linkFixture)
+  await mode('Visual')
+  await action('Undo')
+  await until(() => source() === linked)
+  const editableLink = document.querySelector('.mde-paragraph a')
+  select(editableLink, editableLink.firstChild, 3)
+  document.execCommand('insertText', false, '!')
+  await until(() => source() === linked.replace('[longer]', '[lon!ger]'))
+  await action('Undo')
+  await until(() => source() === linked)
+
   await setSource('One\n\nTwo')
   const first = document.querySelector('.mde-paragraph')
   select(first, first.firstChild, 3)
@@ -206,7 +279,7 @@ async function checkEditor() {
   await until(() => source() === '')
   await setSource('')
 
-  return 'Passed: one editing host, cross-paragraph replacement and undo, JSON projection, formatting, splits, composition, safe paste, protected source, empty document.'
+  return 'Passed: one editing host, cross-paragraph replacement and undo, JSON projection, host-selected bold, safe link insertion/replacement/removal in both modes, link label editing, splits, composition, safe paste, protected source, empty document.'
 }
 
 // oxlint-disable-next-line typescript/no-floating-promises -- agent-browser awaits the final expression and fails on rejection.

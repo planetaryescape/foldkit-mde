@@ -32,13 +32,13 @@ References: [architecture](architecture.html#state), [DOM adapter](../../package
 
 ## D003: Separate plugin responsibilities, not a universal context
 
-Status: accepted direction; pure formatting and representation contracts implemented, general registration and custom components not implemented.
+Status: accepted direction; pure formatting, static host selection and representation contracts implemented, general registration and custom components not implemented.
 
 Chosen: formatting returns transactions; representations project source; future DOM contributions need explicit lifetimes. Core owns contracts and the host selects implementations.
 
 Alternatives: a general registry/context exposing document mutation, DOM, storage, and provider services to every plugin.
 
-Reason: the owner wants unit-testable formatting and extensible output. Consequence: JSON is output-only; HTML requires a safe rendering contract; directly wired bold does not establish a registered plugin engine.
+Reason: the owner wants unit-testable formatting and extensible output. Consequence: JSON is output-only; HTML requires a safe rendering contract. Bold and link plugins return pure transactions; editor-owned Button/Input controls dispatch source-and-selection-bound requests. Static host selection proves a second operation without building a dynamic plugin engine.
 
 Revisit when: a real second contributor needs dynamic registration or scoped resources that static composition cannot supply.
 

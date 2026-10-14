@@ -1,19 +1,7 @@
-import { Schema } from 'effect'
+import type { Selection, Transaction } from '@foldkit-mde/core'
+import type { FormattingPlugin } from '@foldkit-mde/core/plugins'
 
-export const Selection = Schema.Struct({ start: Schema.Int, end: Schema.Int })
-
-export type Selection = typeof Selection.Type
-
-export const Transaction = Schema.Struct({
-  start: Schema.Int,
-  end: Schema.Int,
-  text: Schema.String,
-  selection: Selection,
-})
-
-export type Transaction = typeof Transaction.Type
-
-export const bold = (source: string, selection: Selection): Transaction | undefined => {
+const apply = (source: string, selection: Selection): Transaction | undefined => {
   const { start, end } = selection
 
   if (start < 0 || end > source.length || start >= end) return undefined
@@ -29,9 +17,9 @@ export const bold = (source: string, selection: Selection): Transaction | undefi
     return { start: start - 2, end: end + 2, text, selection: { start: start - 2, end: end - 2 } }
   }
 
-  if (text.includes('*')) return undefined
+  if (/[*[\]`<>\\]/.test(text)) return undefined
 
-  for (const match of source.matchAll(/\*\*([^*\r\n]+)\*\*/g)) {
+  for (const match of source.matchAll(/\*\*([^*\r\n]+)\*\*|\[[^\]\r\n]+\]\([^\r\n]*\)/g)) {
     if (start < match.index + match[0].length && end > match.index) return undefined
   }
 
@@ -48,3 +36,5 @@ export const bold = (source: string, selection: Selection): Transaction | undefi
     selection: { start: from + 2, end: to + 2 },
   }
 }
+
+export const bold: FormattingPlugin = { id: 'bold', apply }

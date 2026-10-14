@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test'
 
 import { Arbitrary, Effect, Schema } from 'effect'
 
-import { bold, init, Message, parse, sourceOffset, update, visualOffset } from './editor'
+import { init, Message, parse, sourceOffset, update, visualOffset } from './editor'
 
 test('initialization preserves source without normalizing Markdown', () => {
   const source = '## Mix\r\n\r\n::music{type="album" id="abc"}\r\n'
@@ -27,35 +27,6 @@ test('editing replaces source, leaves the previous Model untouched, and can clea
       Message.cases.UpdatedSource.make({ source: '', selection: { start: 0, end: 0 } }),
     ).source,
   ).toBe('')
-})
-
-test('bold changes only the selection and toggles back without losing surrounding directives', () => {
-  const source = 'Before\r\n\r\nslow build\r\n\r\n::music{id="keep"}\r\n'
-
-  let model = update(
-    init(source),
-    Message.cases.Selected.make({ selection: { start: 10, end: 14 } }),
-  )
-
-  model = update(model, Message.cases.ToggledBold.make({}))
-  expect(model.source).toBe('Before\r\n\r\n**slow** build\r\n\r\n::music{id="keep"}\r\n')
-  expect(model.selection).toEqual({ start: 12, end: 16 })
-  expect(update(model, Message.cases.ToggledBold.make({})).source).toBe(source)
-  expect(bold(source, { start: 14, end: 14 })).toBeUndefined()
-  expect(bold(source, { start: 0, end: 14 })).toBeUndefined()
-})
-
-test('bold preserves selection whitespace and rejects partial formatting instead of nesting markers', () => {
-  const model = update(
-    init('A  longer track.'),
-    Message.cases.Selected.make({ selection: { start: 2, end: 10 } }),
-  )
-
-  const formatted = update(model, Message.cases.ToggledBold.make({}))
-  expect(formatted.source).toBe('A  **longer** track.')
-  expect(formatted.selection).toEqual({ start: 5, end: 11 })
-  expect(bold(formatted.source, { start: 6, end: 9 })).toBeUndefined()
-  expect(bold('   ', { start: 0, end: 3 })).toBeUndefined()
 })
 
 test('parsing preserves exact spans, protects fenced blocks containing blank lines, and maps bold selections', () => {
@@ -100,7 +71,13 @@ test('undo and redo restore selection across modes without recording a source no
     Message.cases.Selected.make({ selection: { start: 0, end: 6 } }),
   )
 
-  const formatted = update(selected, Message.cases.ToggledBold.make({}))
+  const formatted = update(
+    selected,
+    Message.cases.Applied.make({
+      transaction: { start: 0, end: 6, text: '**longer**', selection: { start: 2, end: 8 } },
+    }),
+  )
+
   const raw = update(formatted, Message.cases.ChangedMode.make({ mode: 'Markdown' }))
   const undone = update(raw, Message.cases.Undo.make({}))
   expect(undone.source).toBe('longer track')

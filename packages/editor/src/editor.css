@@ -79,6 +79,54 @@
   border-bottom: 1px solid var(--mde-border);
 }
 
+.mde-format-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--mde-border);
+  font:
+    0.8rem / 1.5 system-ui,
+    sans-serif;
+}
+
+.mde-format-input label {
+  flex: 1 1 14rem;
+  display: grid;
+  gap: 0.25rem;
+  color: var(--mde-muted);
+}
+
+.mde-format-input input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--mde-border);
+  border-radius: 4px;
+  color: var(--mde-ink);
+  background: transparent;
+  font: inherit;
+}
+
+.mde-format-input input:focus-visible {
+  outline: 2px solid #55735b;
+  outline-offset: 2px;
+}
+
+.mde-format-hint {
+  flex-basis: 100%;
+  color: var(--mde-muted);
+  font-size: 0.75rem;
+}
+
+.mde-paragraph a {
+  color: #3b5841;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .mde button {
   cursor: pointer;
   border: 1px solid transparent;

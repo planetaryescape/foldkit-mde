@@ -17,6 +17,14 @@ The playground listens at <http://127.0.0.1:3017>. Its static build goes to `app
 
 Browser hot reload is disabled because Foldkit uses Vite-specific `import.meta.hot` methods that Bun does not implement. Restart the server and refresh the browser after source changes.
 
+### Amp orbs
+
+`.agents/setup` installs the Bun version declared in `package.json` and frozen-lockfile workspace dependencies, including compiler patches and the Git hook. It keeps compatible preinstalled Node versions, or installs Node 26.10.0 when the Node 22.18 minimum is not met. Setup uses the orb's preinstalled npm and writable global tool directory. It needs no secrets or backing services.
+
+Amp snapshots the prepared toolchain and dependencies for reuse. Exact snapshots skip setup; stale snapshots rerun the idempotent setup against the updated checkout. `.agents/resume` restores the repository-local Git hook without installing dependencies. Browser checks use the orb's preinstalled `agent-browser` and Chromium.
+
+Run the playground as a supervised service with `amp orb service start playground --command 'bun run dev' --port 3017 --portal`. Share the portal URL returned by Amp, not the loopback URL. Setup does not start servers or run the test suite.
+
 With the server running and `agent-browser` installed separately, run `bun run --filter @foldkit-mde/playground test:browser`. This checks the real browser adapter without adding a browser library to the project. Composition and paste events in this check are synthetic; a real operating-system IME still needs manual testing.
 
 Also run `bun run --filter @foldkit-mde/playground test:storage` for the native IndexedDB contract and `bun run --filter @foldkit-mde/playground test:persistence` for packaged autosave, reload, two-tab conflict, and recovery UI. These use dedicated automation profiles. The storage harness creates and deletes its own disposable database. The editor check changes its automation profile's playground document and restores its deliberately corrupted checkpoint afterward. Do not run it against a profile containing valuable work. `/persistence-check` is a local test route, not part of the static production build.

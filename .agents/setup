@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+
+printf '\n==> Checking Node tooling\n'
+SECONDS=0
+if ! command -v node >/dev/null || ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 18) ? 0 : 1)'; then
+  npm install --global --force node@26.10.0
+fi
+node --version
+printf 'Node ready in %ss\n' "$SECONDS"
+
+printf '\n==> Installing the repository-pinned Bun version\n'
+SECONDS=0
+bun_version="$(node -p 'require("./package.json").packageManager.replace(/^bun@/, "")')"
+if ! command -v bun >/dev/null || [[ "$(bun --version)" != "$bun_version" ]]; then
+  npm install --global --force "bun@$bun_version"
+fi
+bun --version
+printf 'Bun ready in %ss\n' "$SECONDS"
+
+printf '\n==> Installing locked workspace dependencies and preparing tooling\n'
+SECONDS=0
+bun install --frozen-lockfile
+printf 'Dependencies ready in %ss\n' "$SECONDS"

@@ -11,18 +11,20 @@ import type { DocumentStore, DocumentKey } from '@foldkit-mde/persistence/store'
 import { Match, Option } from 'effect'
 import * as Command from 'foldkit/command'
 
+import type { FormattingTool } from './formatting'
 import * as Commands from './persistence-commands'
 import { Message, Model, Recovery, Startup } from './persistence-model'
+import { withEditor } from './persistence-view'
 import { Synchronize } from './surface'
+import { make as makeEditor } from './view'
 
 export { Message, Model, Startup } from './persistence-model'
-
-export { view } from './persistence-view'
 
 export interface Options {
   readonly key: DocumentKey
   readonly seed: string
   readonly policy: Policy
+  readonly formatting?: ReadonlyArray<FormattingTool>
 }
 
 export interface ContentOutput<Output> {
@@ -51,6 +53,7 @@ type Return = {
 }
 
 export const make = (options: Options) => {
+  const editing = makeEditor(options.formatting)
   const commands = Commands.makeCommands(Policy.make(options.policy))
 
   const saving = (model: Extract<Model, { _tag: 'Editing' }>, result: Transition): Return => ({
@@ -97,7 +100,7 @@ export const make = (options: Options) => {
       Match.tagsExhaustive({
         Editor: ({ message }) => {
           if (!Model.guards.Editing(model)) return unchanged
-          const editor = Core.update(model.editor, message)
+          const editor = editing.update(model.editor, message)
           const next = { ...model, editor }
 
           const result =
@@ -197,5 +200,5 @@ export const make = (options: Options) => {
     )
   }
 
-  return { load: Commands.loadStartup(options.key), init, update }
+  return { load: Commands.loadStartup(options.key), init, update, view: withEditor(editing.view) }
 }

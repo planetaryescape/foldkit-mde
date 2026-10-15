@@ -41,3 +41,17 @@ test('JSON projection is derived after edits rather than holding independent sta
     children: [{ text: 'words', bold: true }],
   })
 })
+
+test('JSON projects link destinations without treating unsafe raw syntax as active links', () => {
+  const document = json.project('A [longer](/mix) track.\n\n[bad](javascript:evil)')
+  expect(document.nodes[0]).toMatchObject({
+    children: [
+      { text: 'A ', bold: false },
+      { text: 'longer', bold: false, href: '/mix' },
+      { text: ' track.', bold: false },
+    ],
+  })
+  expect(document.nodes[1]?._tag).toBe('Raw')
+  expect(document.nodes[1]).toMatchObject({ source: '[bad](javascript:evil)' })
+  expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
+})

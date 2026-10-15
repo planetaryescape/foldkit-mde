@@ -1,6 +1,8 @@
 import * as Editor from '@foldkit-mde/editor/persistence'
 import * as IndexedDb from '@foldkit-mde/persistence/indexed-db'
+import { bold } from '@foldkit-mde/plugins/bold'
 import { json } from '@foldkit-mde/plugins/json'
+import { link, linkInput } from '@foldkit-mde/plugins/link'
 import { Option } from 'effect'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
@@ -18,6 +20,17 @@ const editor = Editor.make({
   key: { namespace: 'playground', documentId: 'welcome' },
   seed: source,
   policy: { quietMs: 500, maximumMs: 2000 },
+  formatting: [
+    { kind: 'Button', label: 'Toggle bold', plugin: bold, shortcut: 'b', inputType: 'formatBold' },
+    {
+      kind: 'Input',
+      label: 'Apply link',
+      plugin: link,
+      inputLabel: 'Link destination',
+      readInput: linkInput,
+      hint: 'Select plain words or a whole link label. Use https, http, mailto or a relative URL. Empty removes the link.',
+    },
+  ],
 })
 
 const view = (model: Editor.Model, h: HtmlBuilder<Editor.Message>): Document => ({
@@ -33,7 +46,7 @@ const view = (model: Editor.Model, h: HtmlBuilder<Editor.Message>): Document => 
           h.p([h.Class('intro')], ['A small editor, built from the source outward.']),
         ],
       ),
-      Editor.view(model, h),
+      editor.view(model, h),
       h.details(
         [h.Class('document-inspector')],
         [

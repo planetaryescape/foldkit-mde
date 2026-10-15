@@ -1,8 +1,8 @@
 import { Match, Schema } from 'effect'
 
-import { bold, Selection, Transaction } from './bold'
+import { Selection, Transaction } from './transaction'
 
-export { bold, Selection, Transaction } from './bold'
+export { Selection, Transaction } from './transaction'
 
 export { parse, parseInlines, sourceOffset, visualOffset, type Block } from './markdown'
 
@@ -24,7 +24,6 @@ export const Message = Schema.TaggedUnion({
   UpdatedSource: { source: Schema.String, selection: Selection },
   Selected: { selection: Selection },
   Applied: { transaction: Transaction },
-  ToggledBold: {},
   ChangedMode: { mode: Mode },
   Undo: {},
   Redo: {},
@@ -76,11 +75,6 @@ export const update = (model: Model, message: Message): Model =>
       UpdatedSource: ({ source, selection }) => replace(model, source, selection),
       Selected: ({ selection }) => ({ ...model, selection }),
       Applied: ({ transaction }) => apply(model, transaction),
-      ToggledBold: () => {
-        const transaction = bold(model.source, model.selection)
-
-        return transaction ? apply(model, transaction) : model
-      },
       ChangedMode: ({ mode }) => ({ ...model, mode }),
       Undo: () => {
         const previous = model.past.at(-1)

@@ -39,3 +39,25 @@ Delivery: skill committed locally; documentation reorganization in progress. Nei
 The migration passed checks for 152 local links and anchors across 14 first-party documents, unchanged vendored SHA-256 checksums, `bun run precommit`, `bun run build`, and `git diff --check`. An illustrative package stylesheet href inside an HTML code example was excluded from filesystem-link checking. The relocated architecture page rendered in agent-browser; the updated documentation tree was captured and inspected with no clipping or overlap in the changed entries. Browser editor/storage behavior was not rerun for this documentation-only change.
 
 S01's documentation acceptance criteria are met locally. The reorganization is ready for its separate local commit; pushing remains a separate action. The repository-local skill is linked from AGENTS.md. This session starts in the parent `oss` workspace, so its skill reload did not auto-discover the nested repository skill; sessions opened in foldkit-mde can discover it directly.
+
+## 2026-10-14: Host-selected formatting and links
+
+Related: S02 and D003. Bold now belongs to plugins, not core. The editor composes statically selected Button/Input tools; stale source or selection snapshots cannot apply a formatting request. Plain-label links support insertion, destination replacement and removal in Visual and Markdown modes through the same transactions, undo and autosave. JSON includes optional destinations. Unsupported syntax and images remain protected source.
+
+References: Pi's pure transformations and EmDash's explicit patch results informed the boundary. No dynamic registry, marketplace, extra runtime dependency or general plugin context was added. Markdown remains authoritative; Effect owns scoped DOM listener lifetimes and existing persistence work.
+
+Verification: precommit (format, lint, types, workspace tests), build, browser editing, native IndexedDB contracts and packaged persistence scenarios passed. Generated link cases cover 150 labels with seed 923, including Unicode and whitespace, with independent expectations. An intentional off-by-one selection defect failed and reduced to label `a`; it was removed. Image protection failed before its fix and passed afterward. Browser checks exercised insertion/replacement/removal, unsafe destinations, edited labels without navigation, JSON and undo across modes.
+
+A browser check caught stale form mount arguments: Foldkit captures them at insertion rather than refreshing them on render. Forms now have source/selection-keyed lifetimes. Desktop (1280 × 800), tablet (768 × 1024) and mobile (390 × 844) controls were exercised and captures inspected; no clipping or overlap was visible, and mobile had no horizontal overflow. Raw-mode syntax was also captured and inspected.
+
+Remaining: full CommonMark, nested link formatting, custom components and real operating-system IME checks. No gbfm code changed. Browser screenshots are PR review evidence, not committed binaries. S01 delivery correction: its skill and documentation migration were subsequently committed and pushed.
+
+Delivery: feature verified locally on `feat/formatting-plugins-links`, ready for commit and authorized PR submission. No merge, release or deployment.
+
+## 2026-10-15: Independent PR review and link-adjacency correction
+
+[PR #1](https://github.com/planetaryescape/foldkit-mde/pull/1) was pushed and opened after the previous entry. The owner requested an independent code-review thread, fixes and merge. The review found [one reproducible defect](https://github.com/planetaryescape/foldkit-mde/pull/1#discussion_r4280247534): linking `word` in `Hello !word.` created image syntax, replaced the editable paragraph with a protected card and reached autosave.
+
+The plugin now refuses insertion immediately after `!`, using the actual trimmed insertion boundary. This preserves the parser's unsupported-image policy without adding image support. Regression checks cover refusal, permitted whitespace between bang and link, and a bang inside the selected label. The public plugin test failed on the original implementation, then passed with the guard. The browser regression also checks that refusal keeps the exact source and editable paragraph.
+
+Verification: precommit, build, browser editing, native IndexedDB contracts and packaged persistence scenarios passed against a fresh playground server. The changes remain pure plugin logic; Markdown is authoritative and the existing editor update remains the only writer. No extra runtime, dependency or gbfm changes. Merge is authorized, not yet performed in this entry; no release or deployment.

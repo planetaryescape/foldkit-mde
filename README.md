@@ -29,7 +29,7 @@ apps/
 packages/
   core/             Effect Schema Model/Messages and pure Match reducer
   editor/           Foldkit view and editor stylesheet
-  plugins/          Built-in representation plugins, starting with JSON
+  plugins/          Pure bold/link formatting and Markdown/JSON representations
   persistence/      Effect DocumentStore, native IndexedDB, memory Layer, autosave reducer
   anti-slop/        Vendored development-only Oxlint plugins and tests
 docs/
@@ -47,13 +47,14 @@ The editor depends on core. The playground composes both and owns `Runtime.makeA
 
 There is one root `bun.lock`. The root catalog pins runtime versions for all workspaces. All packages are private; these TypeScript source exports are not yet a publication pipeline:
 
-- `@foldkit-mde/core`: Model, Message, selection, transactions, `init`, `update`, `bold`, and source-span parsing/mapping.
-- `@foldkit-mde/editor`: Foldkit `view` and `Synchronize` command.
+- `@foldkit-mde/core`: Model, Message, selection, transactions, `init`, `update`, and source-span parsing/mapping.
+- `@foldkit-mde/editor`: `make(formatting)` returns a matching Foldkit view and update; Message, Formatted, Model and Synchronize are exported.
 - `@foldkit-mde/editor/style.css`: editor styles.
 - `@foldkit-mde/core/plugins`: formatting and representation contracts.
+- `@foldkit-mde/plugins/bold` and `/link`: pure formatting implementations. Link accepts a destination; `linkInput` reads a selected link label's destination.
 - `@foldkit-mde/plugins/json`: versioned JSON Schema and a pure document projection.
 - `@foldkit-mde/plugins/markdown`: exact Markdown representation.
-- `@foldkit-mde/editor/persistence`: opt-in `make`, Model/Message/Startup, local-save/recovery `view`, and typed `project`.
+- `@foldkit-mde/editor/persistence`: opt-in `make` returns init/update/load/view; Model/Message/Startup and typed `project` are exported.
 - `@foldkit-mde/persistence/store`: DocumentStore and Schema-backed keys, receipts, failures.
 - `@foldkit-mde/persistence/indexed-db` and `/memory`: scoped native browser adapter and deterministic test Layer.
 - `@foldkit-mde/persistence/autosave`: pure lifecycle, events, intents, and flush outcomes.
@@ -88,19 +89,48 @@ Anti-slop lives in `packages/anti-slop`, not a top-level tools directory. Its im
 4. Keep a core with testable plugin behavior. Bold/italic, custom components, and Markdown-to-HTML are plugin capabilities rather than hardcoded host features.
 5. Package primary local saving and recovery with the editor. The host configures identity, policy, storage Layer, and runtime. Backend saving, publishing, and application-specific integrations remain in the host.
 
-The playground implements the first editing slice: editable paragraphs and `**bold**`, raw Markdown, selection-aware bold toggling, paragraph breaks, and shared undo/redo. Select plain text to apply bold, or the full contents of a bold span to remove it. Partial selections inside bold and mixed formatting selections are not supported yet. Bold is a pure transaction-producing operation, not a registered plugin engine.
+The playground implements editable paragraphs, `**bold**` and plain-label links, raw Markdown, paragraph breaks, and shared undo/redo. The host selects formatting plugins and their controls. Select plain words to apply bold, or the full contents of a bold span to remove it. Select plain words and enter a link destination to insert a link; select the whole link label to change its destination, or clear the field to remove it. Both modes use the same plugins and history.
+
+Links accept HTTP, HTTPS, mailto and relative destinations. Unsafe schemes, protocol-relative URLs, whitespace, parentheses, titles, nested marks and partial link-label formatting are outside this slice. Unsupported source stays protected. Clicking an editable link does not navigate away. URL input is a temporary DOM draft scoped to source and selection, not another document store; changing either resets it. Formatting requests carry their source and selection and are ignored if stale.
 
 Unsupported blocks, including gbfm music directives, appear as protected source cards. **Edit source** opens raw Markdown at that block. Mode switches do not rewrite the document. The visual adapter renders text nodes and `strong` elements, never source HTML, and pastes plain text only.
 
 Visual mode is now one continuous editing host. Paragraphs are structural children, not separate textboxes. Native cursor movement, cross-paragraph selection/replacement, and Backspace/Delete joins work through that host and share core history. Unsupported source cards are non-editable nodes; structural selection can remove a whole card, while editing its contents requires raw mode.
 
-Open **JSON representation** below the editor to inspect the built-in plugin output. It includes exact source, paragraph nodes, bold marks, source spans, and opaque raw nodes. JSON is a read-only projection, not another authoritative document. JSON import/editing is not implemented; it must validate its format and produce core transactions when added.
+Open **JSON representation** below the editor to inspect the built-in plugin output. It includes exact source, paragraph nodes, bold marks, optional link destinations, source spans, and opaque raw nodes. JSON is a read-only projection, not another authoritative document. JSON import/editing is not implemented; it must validate its format and produce core transactions when added.
 
 This is not a full CommonMark/GFM editor. Full formatting semantics, history coalescing, multiple editor instances, durable undo, and dynamic plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
 
 ## Local saving: package usage
 
-The playground's [compiled composition](apps/playground/src/main.ts) is the consumer recipe. Import `@foldkit-mde/editor/persistence`, call `make({ key, seed, policy })`, and give Foldkit the integration's `init` and `update`. Provide an IndexedDB Layer through `resources`, use `Startup` as the Flags schema, and pass `editor.load` as the boot Flags Effect. Render `Editor.view(model, h)`. The host does not write an autosave reducer.
+The playground's [compiled composition](apps/playground/src/main.ts) is the consumer recipe. Import `@foldkit-mde/editor/persistence`, call `make({ key, seed, policy, formatting })`, and give Foldkit the integration's `init` and `update`. Provide an IndexedDB Layer through `resources`, use `Startup` as the Flags schema, and pass `editor.load` as the boot Flags Effect. Render the returned `editor.view(model, h)`. The host does not write an autosave reducer. Omit `formatting` to show no formatting tools.
+
+### Host-selected formatting
+
+```ts
+import * as Editor from '@foldkit-mde/editor/persistence'
+import { bold } from '@foldkit-mde/plugins/bold'
+import { link, linkInput } from '@foldkit-mde/plugins/link'
+
+const editor = Editor.make({
+  key: { namespace: 'my-app', documentId: 'draft-one' },
+  seed: '',
+  policy: { quietMs: 500, maximumMs: 2000 },
+  formatting: [
+    { kind: 'Button', label: 'Toggle bold', plugin: bold, shortcut: 'b', inputType: 'formatBold' },
+    {
+      kind: 'Input',
+      label: 'Apply link',
+      plugin: link,
+      inputLabel: 'Link destination',
+      readInput: linkInput,
+      hint: 'Select a plain label. Enter a safe URL, or leave empty to remove a link.',
+    },
+  ],
+})
+```
+
+Without persistence, `@foldkit-mde/editor.make(tools)` returns matching view/update functions over the core Model. Use the editor's Message schema in Foldkit, initialize with `Core.init`, and run `Synchronize` when source or mode changes. Headless callers invoke a plugin directly and dispatch `Core.Message.Applied` for its returned transaction. Built-in implementations are in plugins, not core or editor. IDs must be unique within the selected tool list; tools are trusted application code, not sandboxed extensions. No dynamic loading or custom-component registry is introduced.
 
 The core remains usable without storage. The persistent integration wraps it and observes accepted source differences, including undo, redo, and raw or visual edits. Selection and mode changes do not save or create history entries.
 
@@ -122,7 +152,7 @@ The Foldkit package owns raw and visual surfaces, input translation, DOM selecti
 
 Markdown source is authoritative. The small parser derives paragraph and inline spans. The continuous DOM adapter maps ranges across blocks, preserves unchanged block source and adjacent original separators, and translates structural edits into changed source. It pauses input dispatch during composition. Foldkit mounts own listener cleanup through Effect's scoped acquisition. The playground executes synchronization commands through its existing runtime boundary.
 
-[Architecture and package usage](docs/blueprint/architecture.html) maps package imports to the actual file tree, traces browser input through the reducer and synchronization command, and distinguishes implemented contracts from planned capabilities. It includes [headless and Foldkit consumer recipes](docs/blueprint/architecture.html#usage), the state/message rules, and the gaps that remain before gbfm embedding. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection) → transaction`. The host selects implementations. JSON is implemented in `packages/plugins`; bold remains directly wired until dynamic registration is added.
+[Architecture and package usage](docs/blueprint/architecture.html) maps package imports to the actual file tree, traces browser input through the reducer and synchronization command, and distinguishes implemented contracts from planned capabilities. It includes [headless and Foldkit consumer recipes](docs/blueprint/architecture.html#usage), the state/message rules, and the gaps that remain before gbfm embedding. Representation plugins implement `project(source) → output`; formatting plugins implement `apply(source, selection, input) → transaction`. Button tools use no extra input; the link plugin uses a string destination. Host selection is static and explicit, not a dynamic registry.
 
 Plugin responsibilities differ:
 
@@ -131,9 +161,9 @@ Plugin responsibilities differ:
 - Markdown-to-HTML rendering consumes a document and returns output or diagnostics. HTML safety is part of that contract.
 - Custom components register syntax and visual editing behavior. gbfm can supply music/media integrations without putting Spotify, uploads, or publishing in core.
 
-The core tests cover source preservation, bold transaction boundaries, blank paragraphs, selection restoration, and generated edit/undo/redo/mode histories against an independent model. The history property was mutation-checked: deliberately retaining redo after an edit failed and shrank to `edit → undo → edit`. The defect was then removed.
+The core tests cover source preservation, blank paragraphs, selection restoration, and generated edit/undo/redo/mode histories against an independent model. Plugin tests cover bold transaction boundaries and generated link insertion/removal. The history property was mutation-checked: deliberately retaining redo after an edit failed and shrank to `edit → undo → edit`. The defect was then removed.
 
-Try the playground before expanding the plugin contract. The next design decision is which editing behavior matters most: complete text-selection semantics, headings/lists/links, or a gbfm custom-component plugin.
+Try the host-selected tools in the playground before expanding the contract. Complete text-selection semantics, headings/lists and gbfm custom components remain separate future decisions.
 
 ## Research and local references
 

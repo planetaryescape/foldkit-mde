@@ -17,6 +17,9 @@ const serialize = (node: Node): string => {
   if (node instanceof HTMLElement && (node.tagName === 'STRONG' || node.tagName === 'B'))
     return text ? `**${text}**` : ''
 
+  if (node instanceof HTMLAnchorElement)
+    return text ? `[${text}](${node.getAttribute('href') ?? ''})` : ''
+
   if (node instanceof HTMLDivElement && !node.classList.contains('mde-paragraph'))
     return `\n${text}`
 
@@ -241,6 +244,11 @@ export const renderVisual = (
           const strong = document.createElement('strong')
           strong.textContent = inline.text
           node.append(strong)
+        } else if (inline.href !== undefined) {
+          const anchor = document.createElement('a')
+          anchor.setAttribute('href', inline.href)
+          anchor.textContent = inline.text
+          node.append(anchor)
         } else node.append(document.createTextNode(inline.text))
       }
 

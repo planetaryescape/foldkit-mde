@@ -3,6 +3,7 @@ export interface Inline {
   readonly start: number
   readonly end: number
   readonly bold: boolean
+  readonly href?: string
 }
 
 export interface Block {
@@ -17,7 +18,22 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
   const result: Array<Inline> = []
   let cursor = 0
 
-  for (const match of source.matchAll(/\*\*([^*\r\n]+)\*\*/g)) {
+  for (const match of source.matchAll(
+    /\*\*([^*\r\n]+)\*\*|\[([^\][\r\n*_`<>\\]+)\]\(([^\s()<>\\]+)\)/g,
+  )) {
+    const href = match[3]
+
+    if (
+      href !== undefined &&
+      (source[match.index - 1] === '!' ||
+        href.startsWith('//') ||
+        (/^[^/?#]*:/.test(href) && !/^(?:https?:\/\/[^/]+|mailto:.+)/i.test(href)) ||
+        Array.from(href).some(
+          (character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+        ))
+    )
+      continue
+
     if (match.index > cursor) {
       result.push({
         text: source.slice(cursor, match.index),
@@ -27,13 +43,17 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
       })
     }
 
-    const text = match[1] ?? ''
-    result.push({
+    const text = match[1] ?? match[2] ?? ''
+    const prefix = match[1] === undefined ? 1 : 2
+
+    const inline: Inline = {
       text,
-      start: offset + match.index + 2,
-      end: offset + match.index + 2 + text.length,
-      bold: true,
-    })
+      start: offset + match.index + prefix,
+      end: offset + match.index + prefix + text.length,
+      bold: match[1] !== undefined,
+    }
+
+    result.push(href === undefined ? inline : { ...inline, href })
     cursor = match.index + match[0].length
   }
 
@@ -61,7 +81,11 @@ export const parse = (source: string): ReadonlyArray<Block> => {
     if (end <= start) return
     const text = source.slice(start, end).replace(/[\r\n]+$/, '')
     const inlines = parseInlines(text, start)
-    const plain = text.replace(/\*\*[^*\r\n]+\*\*/g, '')
+
+    const plain = inlines
+      .filter((inline) => !inline.bold && inline.href === undefined)
+      .map((inline) => inline.text)
+      .join('')
 
     const editable =
       !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<|---|===))/m.test(text) &&

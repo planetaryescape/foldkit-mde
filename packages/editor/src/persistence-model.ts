@@ -1,7 +1,9 @@
-import { Model as EditorModel, Message as EditorMessage } from '@foldkit-mde/core'
+import { Model as EditorModel } from '@foldkit-mde/core'
 import { Event, FlushResult, Session } from '@foldkit-mde/persistence/autosave'
 import { Counter, DocumentKey, Failure, SavedDocument } from '@foldkit-mde/persistence/store'
 import { Schema } from 'effect'
+
+import { Message as EditorMessage } from './formatting'
 
 export const Startup = Schema.TaggedUnion({
   Loaded: { key: DocumentKey, document: Schema.Option(SavedDocument), sessionId: Schema.String },

@@ -1,13 +1,16 @@
 import * as Editor from '@foldkit-mde/editor/persistence'
 import * as IndexedDb from '@foldkit-mde/persistence/indexed-db'
 import { bold } from '@foldkit-mde/plugins/bold'
+import { heading } from '@foldkit-mde/plugins/heading'
 import { json } from '@foldkit-mde/plugins/json'
 import { link, linkInput } from '@foldkit-mde/plugins/link'
 import { Option } from 'effect'
 import { Runtime } from 'foldkit'
 import type { Document, HtmlBuilder } from 'foldkit/html'
 
-const source = `A place for the **tracks that stay with you**.
+const source = `## Tracks that stay with you
+
+A place for the **tracks that stay with you**.
 
 Start with a slow build. Leave space between the records. Select a few words and try the bold button.
 
@@ -21,6 +24,11 @@ const editor = Editor.make({
   seed: source,
   policy: { quietMs: 500, maximumMs: 2000 },
   formatting: [
+    ...([0, 1, 2, 3, 4, 5, 6] as const).map((level) => ({
+      kind: 'Button' as const,
+      label: level === 0 ? 'Paragraph' : `Heading ${level}`,
+      plugin: heading(level),
+    })),
     { kind: 'Button', label: 'Toggle bold', plugin: bold, shortcut: 'b', inputType: 'formatBold' },
     {
       kind: 'Input',

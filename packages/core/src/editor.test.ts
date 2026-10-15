@@ -65,6 +65,32 @@ test('empty paragraphs remain editable after inserting a break between existing 
   expect(parse('')[0]?.editable).toBe(true)
 })
 
+test('ATX headings interrupt paragraphs, preserve source spans and map only visible content', () => {
+  const source = 'Before\r\n  ###\tA **longer** title ###  \r\nAfter\r\n#\r\n###### Last'
+  const blocks = parse(source)
+  expect(blocks.map((block) => block.source)).toEqual([
+    'Before',
+    '  ###\tA **longer** title ###  ',
+    'After',
+    '#',
+    '###### Last',
+  ])
+  expect(blocks.every((block) => block.editable)).toBe(true)
+
+  const heading = blocks[1]
+
+  if (!heading) throw new Error('Expected heading')
+  expect(heading.inlines.map((inline) => inline.text).join('')).toBe('A longer title')
+  expect(sourceOffset(heading, 2)).toBe(source.indexOf('longer'))
+  expect(visualOffset(heading, source.indexOf('longer'))).toBe(2)
+
+  for (const block of blocks) expect(source.slice(block.start, block.end)).toBe(block.source)
+  expect(parse('```md\n# Protected\n```')[0]?.editable).toBe(false)
+  expect(parse('# *unsupported*')[0]?.editable).toBe(false)
+  expect(parse('    # Indented')[0]?.editable).toBe(false)
+  expect(parse('####### Too many')[0]?.editable).toBe(false)
+})
+
 test('undo and redo restore selection across modes without recording a source no-op', () => {
   const selected = update(
     init('longer track'),

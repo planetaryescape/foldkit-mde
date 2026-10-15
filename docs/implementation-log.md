@@ -61,3 +61,21 @@ Delivery: feature verified locally on `feat/formatting-plugins-links`, ready for
 The plugin now refuses insertion immediately after `!`, using the actual trimmed insertion boundary. This preserves the parser's unsupported-image policy without adding image support. Regression checks cover refusal, permitted whitespace between bang and link, and a bang inside the selected label. The public plugin test failed on the original implementation, then passed with the guard. The browser regression also checks that refusal keeps the exact source and editable paragraph.
 
 Verification: precommit, build, browser editing, native IndexedDB contracts and packaged persistence scenarios passed against a fresh playground server. The changes remain pure plugin logic; Markdown is authoritative and the existing editor update remains the only writer. No extra runtime, dependency or gbfm changes. Merge is authorized, not yet performed in this entry; no release or deployment.
+
+## 2026-10-15: Editable ATX headings
+
+Related: S03. Correction to the previous delivery entry: PR #1 subsequently merged on 2026-10-15. The separate orb-setup PR #2 also merged; heading work does not include that setup change.
+
+Result: Visual mode renders editable headings at levels 1–6 in its existing continuous host. Host-selected heading/paragraph buttons return pure transactions through core history and autosave. Selection survives conversion and mode switches; Enter splits a heading into a heading and paragraph, or exits an empty heading. Untouched headings preserve exact marker spelling and surrounding source. Conversion canonicalizes only the selected block's markers. Multiline/cross-block conversions and conversions that change visible content are refused. JSON output is version 2 with semantic Heading nodes; version-1 consumers must update.
+
+References: Pi's pure transformations and EmDash's explicit patches remain the adapted patterns. No registry, shared plugin context, lifecycle framework or extra runtime dependency was added. Markdown is authoritative, parsing and DOM are derived, and core update remains the only document/history writer. Rat-stack's explicit boundaries and existing verification fence apply; no new enforcement gap was closed.
+
+Verification: `bun run precommit` and `bun run build` passed. Browser editing, native IndexedDB contracts and packaged persistence scenarios passed, including heading conversion, actual autosave and semantic heading reload. Generated Unicode conversion histories ran 150 cases with seed 1473 against independent source/selection/undo expectations. An intentional off-by-one selection defect failed and shrank to empty generated parts and heading level 3; the defect was removed.
+
+Browser validation caught two defects before delivery: greedily hiding whitespace removed spaces between typed words, and serializing an empty heading's placeholder break changed source offsets. Retained regressions cover character-by-character typing both with and without closing hashes, empty headings, cross-block Enter, native joins, selection and shared undo. Exact CRLF preservation is covered in core/plugin tests; browser textarea fixtures use LF because the browser normalizes line endings.
+
+Desktop (1280 × 900), tablet (768 × 1024) and narrow Chromium (390 × 844) layouts were exercised and screenshots inspected. Heading controls wrap without overlap or horizontal overflow; all six heading sizes and raw markers were also inspected. A real pointer/keyboard recording shows conversion, typing and Enter into a paragraph. Screenshot binaries remain review evidence outside Git. Public screenshot upload was unavailable because this orb has no AWS CLI; captures and recording are attached to the Amp thread rather than committed. Viewport emulation is not physical-device testing. Real OS IME remains unverified.
+
+Remaining: lists, Setext headings, full CommonMark/GFM, dynamic registration and gbfm integration are outside this slice. The architecture visual predates headings and is labelled accordingly; current contracts are in the package README.
+
+Delivery: implemented and verified locally on `feat/editable-headings`, ready for the authorized commit, push and open PR. No merge, release or deployment is authorized for this slice.

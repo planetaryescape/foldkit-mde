@@ -116,7 +116,7 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
               [],
               [
                 model.mode === 'Visual'
-                  ? 'Paragraphs, bold + links. Other blocks: edit their source.'
+                  ? 'Paragraphs, headings, bold + links. Other blocks: edit their source.'
                   : 'Markdown edits share the same undo history.',
               ],
             ),

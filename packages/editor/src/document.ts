@@ -1,6 +1,6 @@
 import {
   parse,
-  parseInlines,
+  parseBlock,
   sourceOffset,
   visualOffset,
   type Block,
@@ -116,10 +116,15 @@ export const read = (root: Element) => {
           ? Array.from(element.childNodes, serialize).join('')
           : serialize(node)
 
+    const heading = originalBlock?.heading
+    const prefix = heading ? heading.prefix.replace(/([^ \t])$/, '$1 ') : ''
+    const suffix = heading?.suffix ?? ''
+
+    const spelling =
+      prefix + serialized + (serialized && suffix.startsWith('#') ? ' ' : '') + suffix
+
     const text =
-      originalBlock && serialized === element?.dataset['baseline']
-        ? originalBlock.source
-        : serialized
+      originalBlock && serialized === element?.dataset['baseline'] ? originalBlock.source : spelling
 
     if (entries.length === 0 && index === 0 && originalBlock)
       source += original.slice(0, originalBlock.start)
@@ -135,13 +140,7 @@ export const read = (root: Element) => {
     source += text
     entries.push({
       node,
-      block: {
-        start,
-        end: source.length,
-        source: text,
-        editable: !element?.classList.contains('mde-protected'),
-        inlines: parseInlines(text, start),
-      },
+      block: parseBlock(text, start),
     })
     previousIndex = index
   }
@@ -206,12 +205,19 @@ export const split = (root: Element): Transaction | undefined => {
   } else after.setStart(range.endContainer, range.endOffset)
   const prefix = serialize(before.cloneContents())
   const suffix = serialize(after.cloneContents())
-  const caret = first.block.start + prefix.length + 2
+  const heading = first.block.heading
+
+  const emptyHeading =
+    heading && first === last && first.block.inlines.every((inline) => !inline.text)
+
+  const opening = heading && !emptyHeading ? heading.prefix.replace(/([^ \t])$/, '$1 ') : ''
+  const text = emptyHeading ? '' : `${opening}${prefix}\n\n${suffix}`
+  const caret = first.block.start + (emptyHeading ? 0 : opening.length + prefix.length + 2)
 
   return {
     start: first.block.start,
     end: last.block.end,
-    text: `${prefix}\n\n${suffix}`,
+    text,
     selection: { start: caret, end: caret },
   }
 }
@@ -232,7 +238,10 @@ export const renderVisual = (
   const entries: Array<Entry> = []
 
   for (const block of parse(source)) {
-    const node = document.createElement('div')
+    const node = document.createElement(
+      block.editable && block.heading ? `h${block.heading.level}` : 'div',
+    )
+
     node.dataset['start'] = String(block.start)
     node.dataset['source'] = block.source
 
@@ -252,7 +261,7 @@ export const renderVisual = (
         } else node.append(document.createTextNode(inline.text))
       }
 
-      if (!block.source) node.append(document.createElement('br'))
+      if (block.inlines.every((inline) => !inline.text)) node.append(document.createElement('br'))
     } else {
       node.className = 'mde-protected'
       node.contentEditable = 'false'
@@ -265,7 +274,11 @@ export const renderVisual = (
       node.append(code, button)
     }
 
-    node.dataset['baseline'] = block.editable ? serialize(node) : block.source
+    node.dataset['baseline'] = block.editable
+      ? block.inlines.every((inline) => !inline.text)
+        ? ''
+        : serialize(node)
+      : block.source
     field.append(node)
     entries.push({ node, block })
   }

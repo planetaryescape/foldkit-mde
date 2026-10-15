@@ -9,7 +9,7 @@ test('JSON describes text, marks and raw blocks without losing original Markdown
   const document = json.project(source)
   expect(document.nodes.map((node) => node._tag)).toEqual(['Paragraph', 'Raw'])
   expect(document).toMatchObject({
-    version: 1,
+    version: 2,
     source,
     nodes: [
       {
@@ -53,5 +53,24 @@ test('JSON projects link destinations without treating unsafe raw syntax as acti
   })
   expect(document.nodes[1]?._tag).toBe('Raw')
   expect(document.nodes[1]).toMatchObject({ source: '[bad](javascript:evil)' })
+  expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
+})
+
+test('JSON distinguishes semantic heading levels from paragraphs and protected Markdown', () => {
+  const source = '### A **longer** [track](/mix) ###\nParagraph\n\n# *unsupported*'
+  const document = json.project(source)
+  expect(document.version).toBe(2)
+  expect(document.nodes.map((node) => node._tag)).toEqual(['Heading', 'Paragraph', 'Raw'])
+  expect(document.nodes[0]).toMatchObject({
+    level: 3,
+    span: { start: 0, end: 34 },
+    children: [
+      { text: 'A ', bold: false },
+      { text: 'longer', bold: true },
+      { text: ' ', bold: false },
+      { text: 'track', bold: false, href: '/mix' },
+    ],
+  })
+  expect(document.source).toBe(source)
   expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
 })

@@ -28,6 +28,7 @@ async function checkEditor() {
   }
 
   const setSource = async (text) => {
+    await until(() => button('Markdown'))
     await mode('Markdown')
     const input = document.querySelector('textarea')
     input.value = text
@@ -46,6 +47,135 @@ async function checkEditor() {
     window.getSelection().addRange(range)
     document.dispatchEvent(new Event('selectionchange'))
   }
+
+  for (let level = 1; level <= 6; level += 1) {
+    const fixture = `Before\n ${'#'.repeat(level)}\tA **longer** title ###  \nAfter\n\n::music{id="keep"}\n`
+    await setSource(fixture)
+    const heading = document.querySelector(`.mde-visual > h${level}`)
+    assert(heading?.textContent === 'A longer title', `Heading ${level} must hide ATX syntax`)
+    assert(
+      document.querySelectorAll('[contenteditable="true"]').length === 1,
+      'Headings share one editing host',
+    )
+    await mode('Markdown')
+    assert(
+      document.querySelector('textarea').value === fixture,
+      'Mode switches preserve exact heading syntax',
+    )
+    await mode('Visual')
+    const strong = document.querySelector(`h${level} strong`)
+    select(strong, strong.firstChild, 0, 6)
+    await until(() => !button('Toggle bold').disabled)
+    const target = level === 2 ? 3 : 2
+    const converted = `Before\n${'#'.repeat(target)} A **longer** title\nAfter\n\n::music{id="keep"}\n`
+    await action(`Heading ${target}`)
+    await until(() => source() === converted)
+    assert(window.getSelection().toString() === 'longer', 'Conversion restores text selection')
+    await action('Paragraph')
+    await until(() => source() === 'Before\nA **longer** title\nAfter\n\n::music{id="keep"}\n')
+    await mode('Markdown')
+    await action('Undo')
+    await until(() => source() === converted)
+    await action('Undo')
+    await until(() => source() === fixture)
+    await action('Redo')
+    await until(() => source() === converted)
+  }
+
+  await setSource('## Longer title\n\n::music{id="keep"}')
+  const headingText = document.querySelector('h2.mde-paragraph').firstChild
+  select(headingText.parentElement, headingText, 0, 6)
+  document.execCommand('insertText', false, 'Short')
+  await until(() => source() === '## Short title\n\n::music{id="keep"}')
+  await until(
+    () =>
+      JSON.parse(document.querySelector('[aria-label="JSON document"]').textContent).nodes[0]
+        .level === 2,
+  )
+  const editedHeading = document.querySelector('h2.mde-paragraph')
+  select(editedHeading, editedHeading.firstChild, 5)
+  editedHeading.dispatchEvent(
+    new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertParagraph',
+    }),
+  )
+  await until(() => source() === '## Short\n\n title\n\n::music{id="keep"}')
+  assert(window.getSelection().anchorOffset === 0, 'Enter places caret at the new paragraph start')
+  await action('Undo')
+  await until(() => source() === '## Short title\n\n::music{id="keep"}')
+
+  await setSource('#')
+  const emptyHeading = document.querySelector('h1.mde-paragraph')
+  select(emptyHeading, emptyHeading, 0)
+  document.execCommand('insertText', false, 'New')
+  await until(() => source() === '# New')
+  await setSource('## ###')
+  const closedEmpty = document.querySelector('h2.mde-paragraph')
+  select(closedEmpty, closedEmpty, 0)
+  document.execCommand('insertText', false, 'New')
+  await until(() => source() === '## New ###')
+
+  for (const closing of ['', ' ###']) {
+    await setSource(`## Start${closing}`)
+    const typingHeading = document.querySelector('h2.mde-paragraph')
+    select(typingHeading, typingHeading.firstChild, 5)
+    let typed = ''
+
+    for (const character of ' a new title') {
+      document.execCommand('insertText', false, character)
+      typed += character
+      await until(() => source() === `## Start${typed}${closing}`)
+      assert(
+        document.querySelector('h2.mde-paragraph').textContent === `Start${typed}`,
+        'Heading typing retains spaces between keystrokes',
+      )
+    }
+  }
+
+  await setSource('### ')
+  const blankHeading = document.querySelector('h3.mde-paragraph')
+  select(blankHeading, blankHeading, 0)
+  blankHeading.dispatchEvent(
+    new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertParagraph',
+    }),
+  )
+  await until(() => source() === '')
+  assert(!document.querySelector('.mde-visual h3'), 'Enter exits an empty heading')
+
+  await setSource('## First\n\nSecond')
+  const afterHeading = document.querySelectorAll('.mde-paragraph')[1]
+  select(afterHeading, afterHeading.firstChild, 0)
+  document.execCommand('delete')
+  await until(() => source() === '## FirstSecond')
+  await action('Undo')
+  await until(() => source() === '## First\n\nSecond')
+  await setSource('First\n\n## Second')
+  const followingHeading = document.querySelector('h2.mde-paragraph')
+  select(followingHeading, followingHeading.firstChild, 0)
+  document.execCommand('delete')
+  await until(() => source() === 'FirstSecond')
+
+  await setSource('##\n\nSecond')
+  const headingRange = document.createRange()
+  const headingRoot = document.querySelector('.mde-visual')
+  headingRoot.focus()
+  headingRange.setStart(headingRoot.querySelector('h2'), 0)
+  headingRange.setEnd(headingRoot.querySelector('div.mde-paragraph').firstChild, 3)
+  window.getSelection().removeAllRanges()
+  window.getSelection().addRange(headingRange)
+  headingRoot.dispatchEvent(
+    new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertParagraph',
+    }),
+  )
+  await until(() => source() === '## \n\nond')
 
   const fixture = 'Before **longer** after.\n\nEditable paragraph.\n\n::music{id="keep"}\n'
   await setSource(fixture)
@@ -295,7 +425,7 @@ async function checkEditor() {
   await until(() => source() === '')
   await setSource('')
 
-  return 'Passed: one editing host, cross-paragraph replacement and undo, JSON projection, host-selected bold, safe link insertion/replacement/removal in both modes, link label editing, splits, composition, safe paste, protected source, empty document.'
+  return 'Passed: one editing host, ATX heading levels/conversion/typing/splits/joins/selection/undo, cross-paragraph replacement and undo, JSON projection, host-selected bold, safe link insertion/replacement/removal in both modes, link label editing, splits, composition, safe paste, protected source, empty document.'
 }
 
 // oxlint-disable-next-line typescript/no-floating-promises -- agent-browser awaits the final expression and fails on rejection.

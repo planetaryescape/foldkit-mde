@@ -1,6 +1,6 @@
 # Product overview
 
-Status: accepted product direction with host-selected formatting and local saving. Inspected on 2026-10-14. See [the architecture](architecture.html) for section-level implementation details and [decisions](02-decision-log.md) for constraints.
+Status: accepted product direction with host-selected formatting, ATX headings and local saving. Inspected on 2026-10-15. See [the architecture](architecture.html) for package boundaries and [decisions](02-decision-log.md) for constraints. The architecture visual predates the heading slice; current heading behavior and JSON version 2 are described in [package usage](../../README.md#settled-design-direction).
 
 ## Goal and audience
 
@@ -10,9 +10,9 @@ Users should move between editable Visual mode and raw Markdown without maintain
 
 ## Implemented behavior
 
-- Markdown source is authoritative. Visual paragraphs, bold and plain-label links are a derived editable view, with unsupported syntax preserved rather than silently rewritten.
+- Markdown source is authoritative. Visual paragraphs, ATX headings, bold and plain-label links are a derived editable view, with unsupported syntax preserved rather than silently rewritten.
 - One continuous Visual editing host shares transactions and undo/redo with raw mode.
-- Formatting and representation contracts belong to core. Bold/link implementations belong to plugins; the host selects Button/Input tools and the editor routes accepted transactions to core. Markdown and versioned JSON are representations, not separate stores.
+- Formatting and representation contracts belong to core. Bold/link/heading implementations belong to plugins; the host selects Button/Input tools and the editor routes accepted transactions to core. Markdown and versioned JSON are representations, not separate stores. JSON version 2 distinguishes Heading nodes by level.
 - Opt-in local persistence provides loading, autosave, retry, flush, conflicts, and previous-checkpoint preview/export through an Effect service. The playground selects native IndexedDB.
 - Reload restores committed source with fresh session history, caret, and Visual mode. Saved locally means transaction completion, not backup or a guarantee against browser clearing.
 

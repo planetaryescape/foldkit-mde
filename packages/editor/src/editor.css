@@ -79,6 +79,10 @@
   border-bottom: 1px solid var(--mde-border);
 }
 
+.mde-actions {
+  flex-wrap: wrap;
+}
+
 .mde-format-input {
   display: flex;
   flex-wrap: wrap;
@@ -164,6 +168,37 @@
   font:
     1.15rem / 1.8 Georgia,
     serif;
+}
+
+.mde-visual > h1,
+.mde-visual > h2,
+.mde-visual > h3,
+.mde-visual > h4,
+.mde-visual > h5,
+.mde-visual > h6 {
+  min-height: 1.3em;
+  margin: 1.2rem 0 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.mde-visual > h1 {
+  font-size: 2rem;
+}
+.mde-visual > h2 {
+  font-size: 1.7rem;
+}
+.mde-visual > h3 {
+  font-size: 1.45rem;
+}
+.mde-visual > h4 {
+  font-size: 1.25rem;
+}
+.mde-visual > h5 {
+  font-size: 1.1rem;
+}
+.mde-visual > h6 {
+  font-size: 1rem;
 }
 
 .mde-visual > .mde-paragraph:only-child:has(> br:only-child)::before {

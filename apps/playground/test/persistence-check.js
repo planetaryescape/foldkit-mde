@@ -30,8 +30,12 @@ async function checkPersistence() {
     await until(() => source(doc) === text)
   }
 
-  const fixture = 'Exact **Markdown**\n\n::music{id="preserve"}\n'
-  await setSource(document, fixture)
+  const fixture = '### Exact **Markdown**\n\n::music{id="preserve"}\n'
+  await until(() => button(document, 'Markdown'))
+  await setSource(document, 'Exact **Markdown**\n\n::music{id="preserve"}\n')
+  await until(() => !button(document, 'Heading 3').disabled)
+  button(document, 'Heading 3').click()
+  await until(() => source(document) === fixture && saved(document))
   button(document, 'Save now').click()
   await until(() => saved(document))
   const frame = document.createElement('iframe')
@@ -43,6 +47,10 @@ async function checkPersistence() {
   try {
     await until(() => source(frame.contentDocument) === fixture && saved(frame.contentDocument))
     assert(button(frame.contentDocument, 'Undo').disabled, 'Restart resets history')
+    assert(
+      frame.contentDocument.querySelector('.mde-visual > h3')?.textContent === 'Exact Markdown',
+      'Autosaved heading conversion reloads as an editable semantic heading',
+    )
     assert(
       frame.contentDocument.querySelector('#mde-surface').dataset.mode === 'Visual',
       'Restart resets mode',

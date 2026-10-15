@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./bold": "./src/bold.ts",
+    "./heading": "./src/heading.ts",
     "./link": "./src/link.ts",
     "./json": "./src/json.ts",
     "./markdown": "./src/markdown.ts"

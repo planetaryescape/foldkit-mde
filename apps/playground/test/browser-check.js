@@ -65,6 +65,22 @@ async function checkEditor() {
   await action('Redo')
   await until(() => source() === fixture.replace('**longer**', 'longer'))
 
+  await setSource('Hello !word.')
+  const bangParagraph = document.querySelector('.mde-paragraph')
+  select(bangParagraph, bangParagraph.firstChild, 7, 11)
+  await until(() => !button('Apply link').disabled)
+  const bangDestination = document.querySelector('[aria-label="Link destination"]')
+  bangDestination.focus()
+  bangDestination.value = '/mix'
+  bangDestination.dispatchEvent(new Event('input', { bubbles: true }))
+  bangDestination.closest('form').requestSubmit()
+  assert(
+    !bangDestination.validity.valid &&
+      source() === 'Hello !word.' &&
+      !document.querySelector('.mde-protected'),
+    'Link insertion must refuse image adjacency without replacing the editable paragraph',
+  )
+
   const linkFixture = 'A longer track.\n\n::music{id="keep"}\n'
   await setSource(linkFixture)
   const linkParagraph = document.querySelector('.mde-paragraph')

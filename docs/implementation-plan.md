@@ -18,7 +18,7 @@ Completion evidence: [documentation organization entry](implementation-log.md#do
 
 ## S02: Host-selected formatting and links
 
-Status: implemented and verified locally on `feat/formatting-plugins-links`; PR delivery pending. Depends on D002 and D003.
+Status: implemented and verified in [PR #1](https://github.com/planetaryescape/foldkit-mde/pull/1). Independent review found one image-adjacency defect; its fix and regression checks passed. Merge authorized by the owner. Depends on D002 and D003.
 
 Outcome: the host selects pure bold/link plugins and their editor-owned controls. Users insert, replace and remove plain-label links in both modes through shared history and autosave. Core must not import concrete formatting implementations.
 

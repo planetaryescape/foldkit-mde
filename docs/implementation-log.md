@@ -53,3 +53,11 @@ A browser check caught stale form mount arguments: Foldkit captures them at inse
 Remaining: full CommonMark, nested link formatting, custom components and real operating-system IME checks. No gbfm code changed. Browser screenshots are PR review evidence, not committed binaries. S01 delivery correction: its skill and documentation migration were subsequently committed and pushed.
 
 Delivery: feature verified locally on `feat/formatting-plugins-links`, ready for commit and authorized PR submission. No merge, release or deployment.
+
+## 2026-10-15: Independent PR review and link-adjacency correction
+
+[PR #1](https://github.com/planetaryescape/foldkit-mde/pull/1) was pushed and opened after the previous entry. The owner requested an independent code-review thread, fixes and merge. The review found [one reproducible defect](https://github.com/planetaryescape/foldkit-mde/pull/1#discussion_r4280247534): linking `word` in `Hello !word.` created image syntax, replaced the editable paragraph with a protected card and reached autosave.
+
+The plugin now refuses insertion immediately after `!`, using the actual trimmed insertion boundary. This preserves the parser's unsupported-image policy without adding image support. Regression checks cover refusal, permitted whitespace between bang and link, and a bang inside the selected label. The public plugin test failed on the original implementation, then passed with the guard. The browser regression also checks that refusal keeps the exact source and editable paragraph.
+
+Verification: precommit, build, browser editing, native IndexedDB contracts and packaged persistence scenarios passed against a fresh playground server. The changes remain pure plugin logic; Markdown is authoritative and the existing editor update remains the only writer. No extra runtime, dependency or gbfm changes. Merge is authorized, not yet performed in this entry; no release or deployment.

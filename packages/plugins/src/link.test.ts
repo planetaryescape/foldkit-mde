@@ -68,6 +68,9 @@ test('links reject unsafe destinations and ambiguous selections without changing
   expect(link.apply('```\nlonger\n```', { start: 4, end: 10 }, '/new')).toBeUndefined()
   expect(link.apply('A longer\n\ntrack.', { start: 2, end: 15 }, '/new')).toBeUndefined()
   expect(link.apply('A longer track.', { start: 2, end: 2 }, '/new')).toBeUndefined()
+  expect(link.apply('Hello !word.', { start: 7, end: 11 }, '/mix')).toBeUndefined()
+  expect(link.apply('Hello ! word.', { start: 7, end: 12 }, '/mix')?.text).toBe('[word](/mix)')
+  expect(link.apply('Hello !word.', { start: 6, end: 11 }, '/mix')?.text).toBe('[!word](/mix)')
   expect(link.apply('A  longer track.', { start: 2, end: 10 }, '/mix')).toEqual({
     start: 3,
     end: 9,

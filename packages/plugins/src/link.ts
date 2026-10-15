@@ -45,6 +45,8 @@ const apply = (
   if (!url) return undefined
   const from = existing !== undefined ? start : start + label.length - label.trimStart().length
   const to = existing !== undefined ? end : end - (label.length - label.trimEnd().length)
+
+  if (source[from - 1] === '!') return undefined
   const text = `[${source.slice(from, to)}](${url})`
   const proposed = parse(text)[0]
 

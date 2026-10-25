@@ -25,6 +25,8 @@ async function checkEditor() {
   }
 
   const action = async (name) => {
+    // Surface commands can finish before Foldkit refreshes the toolbar's request snapshot.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     await until(() => !button(name).disabled)
     const popover = button(name).closest('[popover]')
 
@@ -75,9 +77,50 @@ async function checkEditor() {
     await new Promise((resolve) => requestAnimationFrame(resolve))
   }
 
+  const modeFixture = 'A longer track\n\n::music{id="keep"}'
+  await setSource(modeFixture)
+  const modeParagraph = document.querySelector('.mde-paragraph')
+  select(modeParagraph, modeParagraph.firstChild, 2, 8)
+  await key(modeParagraph, 'M', { ctrlKey: true, shiftKey: true, altKey: true })
+  await key(modeParagraph, 'M', { ctrlKey: true, shiftKey: true, isComposing: true })
+  assert(document.querySelector('.mde-visual'), 'Alt and IME keys do not toggle modes')
+  await key(modeParagraph, 'M', { ctrlKey: true, shiftKey: true })
+  await until(
+    () =>
+      document.querySelector('textarea') &&
+      document.activeElement === document.querySelector('textarea') &&
+      button('Markdown').getAttribute('aria-pressed') === 'true',
+  )
+  const modeInput = document.querySelector('textarea')
+  assert(
+    document.activeElement === modeInput &&
+      modeInput.selectionStart === 2 &&
+      modeInput.selectionEnd === 8 &&
+      button('Markdown').getAttribute('aria-pressed') === 'true',
+    'The mode shortcut preserves selection and focuses Markdown',
+  )
+  await key(modeInput, 'M', { ctrlKey: true, shiftKey: true, repeat: true })
+  assert(document.querySelector('textarea'), 'Holding the shortcut does not toggle repeatedly')
+  button('Visual').focus()
+  await key(button('Visual'), 'M', { metaKey: true, shiftKey: true })
+  await until(
+    () =>
+      document.querySelector('.mde-visual') &&
+      document.activeElement === document.querySelector('.mde-visual') &&
+      button('Visual').getAttribute('aria-pressed') === 'true',
+  )
+  assert(
+    window.getSelection().toString() === 'longer' &&
+      source() === modeFixture &&
+      button('Visual').getAttribute('aria-pressed') === 'true' &&
+      document.querySelector('.mde-mode-shortcut').textContent === 'Ctrl/⌘+Shift+M',
+    'Command shortcut also works from mode controls, preserving source and visible discovery',
+  )
+
   for (const [name, marker, tag, shortcut, inputType] of [
     ['Italic', '*longer*', 'em', 'i', 'formatItalic'],
     ['Underline', '<u>longer</u>', 'u', 'u', 'formatUnderline'],
+    ['Strikethrough', '~~longer~~', 's', undefined, 'formatStrikeThrough'],
   ]) {
     for (const editingMode of ['Visual', 'Markdown']) {
       const fixture = '## A longer track\n\n::music{id="keep"}\n'
@@ -110,7 +153,9 @@ async function checkEditor() {
       await until(() => source() === fixture)
       const heading = document.querySelector('h2.mde-paragraph')
       select(heading, heading.firstChild, 2, 8)
-      await key(heading, shortcut, { ctrlKey: true })
+
+      if (shortcut) await key(heading, shortcut, { ctrlKey: true })
+      else await action(name)
       await until(() => source() === formatted)
       document.execCommand('insertText', false, 'short')
       await until(() => source() === formatted.replace('longer', 'short'))
@@ -130,13 +175,14 @@ async function checkEditor() {
     ['Italic', '*longer*'],
     ['Bold', '***longer***'],
     ['Underline', '<u>***longer***</u>'],
+    ['Strikethrough', '<u>~~***longer***~~</u>'],
   ]) {
     await action(name)
     await until(() => source() === `A ${spelling} track\n\n::music{id="keep"}`)
   }
 
   assert(
-    document.querySelector('u strong em')?.textContent === 'longer',
+    document.querySelector('s u strong em')?.textContent === 'longer',
     'Marks compose without losing their text',
   )
   assert(
@@ -146,7 +192,7 @@ async function checkEditor() {
   await until(
     () =>
       JSON.parse(document.querySelector('[aria-label="JSON document"]').textContent).nodes[0]
-        .children[1].underline,
+        .children[1].strikethrough,
   )
 
   for (const [fixture, after] of [
@@ -656,7 +702,7 @@ async function checkEditor() {
   await until(() => source() === '')
   await setSource('')
 
-  return 'Passed: one editing host, ATX headings, bold/italic/underline buttons and shortcuts in both modes, composed marks/typing/JSON/undo, protected-block focus/navigation/source editing/deletion/undo, cross-paragraph editing, safe links, splits, composition, safe paste, empty document.'
+  return 'Passed: visible mode shortcut with preserved selection, one editing host, ATX headings, bold/italic/underline/strikethrough in both modes, composed marks/typing/JSON/undo, protected-block focus/navigation/source editing/deletion/undo, cross-paragraph editing, safe links, splits, composition, safe paste, empty document.'
 }
 
 // oxlint-disable-next-line typescript/no-floating-promises -- agent-browser awaits the final expression and fails on rejection.

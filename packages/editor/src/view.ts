@@ -51,21 +51,27 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
           [
             h.div(
               [h.Class('mde-modes'), h.AriaLabel('Editing mode')],
-              ['Visual', 'Markdown'].map((mode) =>
-                h.button(
-                  [
-                    h.Type('button'),
-                    h.Class(model.mode === mode ? 'is-active' : ''),
-                    h.AriaPressed(String(model.mode === mode)),
-                    h.OnClick(
-                      CoreMessage.cases.ChangedMode.make({
-                        mode: mode === 'Visual' ? 'Visual' : 'Markdown',
-                      }),
-                    ),
-                  ],
-                  [mode],
+              [
+                ...['Visual', 'Markdown'].map((mode) =>
+                  h.button(
+                    [
+                      h.Type('button'),
+                      h.Class(model.mode === mode ? 'is-active' : ''),
+                      h.AriaPressed(String(model.mode === mode)),
+                      h.OnClick(
+                        CoreMessage.cases.ChangedMode.make({
+                          mode: mode === 'Visual' ? 'Visual' : 'Markdown',
+                        }),
+                      ),
+                    ],
+                    [mode],
+                  ),
                 ),
-              ),
+                h.span(
+                  [h.Class('mde-mode-shortcut'), h.Title('Switch between Visual and Markdown')],
+                  ['Ctrl/⌘+Shift+M'],
+                ),
+              ],
             ),
             h.div(
               [h.Class('mde-actions')],
@@ -73,6 +79,7 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                 ...tools.flatMap((tool, index) => {
                   if (tool.kind === 'Input')
                     return [
+                      h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
                       h.button(
                         [h.Type('button'), h.Popovertarget(`mde-input-${tool.plugin.id}`)],
                         [tool.triggerLabel ?? tool.inputLabel],
@@ -103,23 +110,31 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                         item.kind === 'Button' && item.group === group ? [formatButton(item)] : [],
                       ),
                     ),
+                    h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
                   ]
                 }),
+                h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
                 h.button(
                   [
                     h.Type('button'),
+                    h.AriaLabel('Undo'),
+                    h.Title('Undo (Ctrl/⌘+Z)'),
+                    h.Class('mde-history-tool'),
                     h.Disabled(model.past.length === 0),
                     h.OnClick(CoreMessage.cases.Undo.make({})),
                   ],
-                  ['Undo'],
+                  ['↶'],
                 ),
                 h.button(
                   [
                     h.Type('button'),
+                    h.AriaLabel('Redo'),
+                    h.Title('Redo (Ctrl/⌘+Shift+Z)'),
+                    h.Class('mde-history-tool'),
                     h.Disabled(model.future.length === 0),
                     h.OnClick(CoreMessage.cases.Redo.make({})),
                   ],
-                  ['Redo'],
+                  ['↷'],
                 ),
               ],
             ),

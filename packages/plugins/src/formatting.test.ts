@@ -4,7 +4,7 @@ import { init, Message, update } from '@foldkit-mde/core'
 import { Arbitrary, Effect, Schema } from 'effect'
 
 import { heading } from './heading'
-import { bold, italic, underline } from './marks'
+import { bold, italic, strikethrough, underline } from './marks'
 
 test('bold transactions preserve surrounding source, selection whitespace and shared undo', () => {
   const source = 'Before\r\n\r\nslow build\r\n\r\n::music{id="keep"}\r\n'
@@ -98,9 +98,11 @@ test('inline marks compose, toggle independently and restore source and selectio
     [italic, '*longer*'],
     [bold, '***longer***'],
     [underline, '<u>***longer***</u>'],
-    [italic, '<u>**longer**</u>'],
-    [bold, '<u>longer</u>'],
-    [underline, 'longer'],
+    [strikethrough, '<u>~~***longer***~~</u>'],
+    [italic, '<u>~~**longer**~~</u>'],
+    [bold, '<u>~~longer~~</u>'],
+    [underline, '~~longer~~'],
+    [strikethrough, 'longer'],
   ] as const) {
     const transaction = plugin.apply(model.source, model.selection)
 
@@ -120,7 +122,7 @@ test('inline marks compose, toggle independently and restore source and selectio
     expect(model.selection).toEqual(previous.selection)
   }
 
-  for (const plugin of [italic, underline]) {
+  for (const plugin of [italic, underline, strikethrough]) {
     expect(plugin.apply('A **longer** track.', { start: 6, end: 9 })).toBeUndefined()
     expect(plugin.apply('[longer](/mix)', { start: 1, end: 7 })).toBeUndefined()
     expect(plugin.apply('::music{id="keep"}', { start: 2, end: 7 })).toBeUndefined()
@@ -135,7 +137,7 @@ test('generated mark histories match independent spellings, source boundaries an
   const cases = Arbitrary.schema(
     Schema.Struct({
       parts: Schema.Array(Schema.Literals(['a', '界', '🎵', ' '])),
-      operations: Schema.Array(Schema.Literals(['bold', 'italic', 'underline'])),
+      operations: Schema.Array(Schema.Literals(['bold', 'italic', 'underline', 'strikethrough'])),
     }),
   )
 
@@ -157,10 +159,18 @@ test('generated mark histories match independent spellings, source boundaries an
           '<u>**word**</u>',
           '<u>*word*</u>',
           '<u>***word***</u>',
+          '~~word~~',
+          '~~**word**~~',
+          '~~*word*~~',
+          '~~***word***~~',
+          '<u>~~word~~</u>',
+          '<u>~~**word**~~</u>',
+          '<u>~~*word*~~</u>',
+          '<u>~~***word***~~</u>',
         ]
 
-        const plugins = { bold, italic, underline }
-        const bits = { bold: 1, italic: 2, underline: 4 }
+        const plugins = { bold, italic, underline, strikethrough }
+        const bits = { bold: 1, italic: 2, underline: 4, strikethrough: 8 }
         let state = 0
 
         let model = update(

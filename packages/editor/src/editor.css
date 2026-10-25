@@ -75,6 +75,20 @@
   flex-wrap: wrap;
 }
 
+.mde-mode-shortcut {
+  margin-left: 0.35rem;
+  color: var(--mde-muted);
+  white-space: nowrap;
+  font-size: 0.7rem;
+}
+
+.mde-toolbar-divider {
+  flex: 0 0 1px;
+  height: 1.2rem;
+  margin-inline: 0.15rem;
+  background: var(--mde-border);
+}
+
 .mde-group-trigger {
   display: inline-flex;
   align-items: center;
@@ -219,6 +233,14 @@
 .mde button[aria-label='Underline'] {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.mde button[aria-label='Strikethrough'] {
+  text-decoration: line-through;
+}
+
+.mde button.mde-history-tool {
+  font-size: 1.1rem;
 }
 
 .mde button:focus-visible,
@@ -404,6 +426,10 @@
 
   .mde-actions {
     gap: 0.1rem;
+  }
+
+  .mde-toolbar-divider {
+    margin-inline: 0;
   }
 
   .mde button {

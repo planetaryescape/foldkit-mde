@@ -104,11 +104,27 @@ test('inline italic and attribute-free underline map visible text without enabli
     bold: true,
     italic: true,
     underline: true,
+    strikethrough: false,
   })
   expect(sourceOffset(block, 2)).toBe(11)
   expect(sourceOffset(block, 8, 'backward')).toBe(17)
   expect(visualOffset(block, 14)).toBe(5)
   expect(parse('<u>words</u>')[0]?.editable).toBe(true)
+  const struck = parse('## A <u>~~***longer***~~</u> track')[0]
+
+  if (!struck) throw new Error('Expected struck heading')
+  expect(struck.editable).toBe(true)
+  expect(struck.inlines[1]).toEqual({
+    text: 'longer',
+    start: 13,
+    end: 19,
+    bold: true,
+    italic: true,
+    underline: true,
+    strikethrough: true,
+  })
+  expect(sourceOffset(struck, 2)).toBe(13)
+  expect(visualOffset(struck, 16)).toBe(5)
 
   for (const source of [
     '<u onclick="bad()">words</u>',
@@ -117,6 +133,8 @@ test('inline italic and attribute-free underline map visible text without enabli
     '<u>unfinished',
     '**<img src=x>**',
     '**[label](/mix)**',
+    '~~[label](/mix)~~',
+    '[~~label~~](/mix)',
   ])
     expect(parse(source)[0]?.editable).toBe(false)
 })

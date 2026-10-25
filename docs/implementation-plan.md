@@ -38,9 +38,9 @@ Non-goals: lists, Setext headings, full CommonMark/GFM, dynamic registration, cu
 
 ## S04: A quieter editor UI
 
-Status: implemented locally on `feat/editor-ui-polish`; not committed or pushed.
+Status: implemented and verified on `feat/editor-ui-polish`. See the implementation log for delivery evidence.
 
-Outcome: a compact page header and persistent toolbar give the document more space. Host-selected paragraph/heading tools share a Text style dropdown; Link opens its input only when needed. Native popovers own keyboard/light-dismiss behavior. Owner feedback expanded the slice to include asterisk italic, attribute-free underline, a drawn chevron and protected-card keyboard controls. These use existing source transactions/history and saving policy; JSON version 3 records the new marks.
+Outcome: a compact page header and persistent toolbar give the document more space. Host-selected paragraph/heading tools share a Text style dropdown; Link opens its input only when needed. Native popovers own keyboard/light-dismiss behavior. Owner feedback expanded the slice to include asterisk italic, attribute-free underline, double-tilde strikethrough, a drawn chevron, a visible mode-switch shortcut and protected-card keyboard controls. These use existing source transactions/history and saving policy; JSON version 4 records all four marks.
 
 Acceptance: heading, link and inline formatting retain selection and shared history; Escape and outside clicks close popovers without editing. Cards support keyboard focus, source editing, adjacent navigation and undoable whole-block deletion. Controls, popovers and source view fit desktop, tablet and narrow layouts. Preserve local-save/recovery behavior, including reload of the new marks. Check the rendered states, real pointer/keyboard flow, mutation-checked generated mark histories, precommit, build and all browser suites.
 

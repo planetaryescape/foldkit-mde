@@ -183,7 +183,28 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             }
 
             const keydown = (event: Event) => {
-              if (!(event instanceof KeyboardEvent) || composing) return
+              if (!(event instanceof KeyboardEvent) || composing || event.isComposing) return
+
+              if (
+                (event.ctrlKey || event.metaKey) &&
+                event.shiftKey &&
+                !event.altKey &&
+                event.key.toLowerCase() === 'm'
+              ) {
+                event.preventDefault()
+
+                if (event.repeat) return
+                select()
+                emit(
+                  CoreMessage.cases.ChangedMode.make({
+                    mode: element.getAttribute('data-mode') === 'Visual' ? 'Markdown' : 'Visual',
+                  }),
+                )
+
+                return
+              }
+
+              if (!(event.target instanceof Node) || !element.contains(event.target)) return
 
               if (!(event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)) {
                 const target = event.target
@@ -406,7 +427,6 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             const listeners = new Map<string, EventListener>([
               ['input', input],
               ['focusin', focusin],
-              ['keydown', keydown],
               ['beforeinput', beforeinput],
               ['click', click],
               ['compositionstart', compositionStart],
@@ -414,10 +434,15 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
               ['paste', paste],
             ])
 
+            const editor = element.closest('.mde') ?? element
+            editor.addEventListener('keydown', keydown)
+
             for (const [name, listener] of listeners) element.addEventListener(name, listener)
             document.addEventListener('selectionchange', select)
 
             return () => {
+              editor.removeEventListener('keydown', keydown)
+
               for (const [name, listener] of listeners) element.removeEventListener(name, listener)
               document.removeEventListener('selectionchange', select)
             }

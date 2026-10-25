@@ -22,6 +22,9 @@ const serialize = (node: Node): string => {
 
   if (node instanceof HTMLElement && node.tagName === 'U') return text ? `<u>${text}</u>` : ''
 
+  if (node instanceof HTMLElement && (node.tagName === 'S' || node.tagName === 'STRIKE'))
+    return text ? `~~${text}~~` : ''
+
   if (node instanceof HTMLAnchorElement)
     return text ? `[${text}](${node.getAttribute('href') ?? ''})` : ''
 
@@ -260,6 +263,7 @@ export const renderVisual = (
           [inline.italic, 'em'],
           [inline.bold, 'strong'],
           [inline.underline, 'u'],
+          [inline.strikethrough, 's'],
         ] as const) {
           if (!enabled) continue
           const wrapper = document.createElement(tag)

@@ -9,7 +9,7 @@ test('JSON describes text, marks and raw blocks without losing original Markdown
   const document = json.project(source)
   expect(document.nodes.map((node) => node._tag)).toEqual(['Paragraph', 'Raw'])
   expect(document).toMatchObject({
-    version: 3,
+    version: 4,
     source,
     nodes: [
       {
@@ -59,7 +59,7 @@ test('JSON projects link destinations without treating unsafe raw syntax as acti
 test('JSON distinguishes semantic heading levels from paragraphs and protected Markdown', () => {
   const source = '### A **longer** [track](/mix) ###\nParagraph\n\n# `unsupported`'
   const document = json.project(source)
-  expect(document.version).toBe(3)
+  expect(document.version).toBe(4)
   expect(document.nodes.map((node) => node._tag)).toEqual(['Heading', 'Paragraph', 'Raw'])
   expect(document.nodes[0]).toMatchObject({
     level: 3,
@@ -75,8 +75,8 @@ test('JSON distinguishes semantic heading levels from paragraphs and protected M
   expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
 })
 
-test('JSON version 3 retains each inline mark independently', () => {
-  const document = json.project('A *longer* <u>track</u> and <u>***mix***</u>.')
+test('JSON version 4 retains each inline mark independently', () => {
+  const document = json.project('A *longer* <u>track</u> and <u>~~***mix***~~</u>.')
   expect(document.nodes[0]).toMatchObject({
     children: [
       { text: 'A ', bold: false, italic: false, underline: false },
@@ -84,10 +84,10 @@ test('JSON version 3 retains each inline mark independently', () => {
       { text: ' ', bold: false, italic: false, underline: false },
       { text: 'track', bold: false, italic: false, underline: true },
       { text: ' and ', bold: false, italic: false, underline: false },
-      { text: 'mix', bold: true, italic: true, underline: true },
+      { text: 'mix', bold: true, italic: true, underline: true, strikethrough: true },
       { text: '.', bold: false, italic: false, underline: false },
     ],
   })
   expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
-  expect(() => Schema.decodeUnknownSync(JsonDocument)({ ...document, version: 2 })).toThrow()
+  expect(() => Schema.decodeUnknownSync(JsonDocument)({ ...document, version: 3 })).toThrow()
 })

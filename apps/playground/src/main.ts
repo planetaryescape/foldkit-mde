@@ -5,6 +5,7 @@ import { heading } from '@foldkit-mde/plugins/heading'
 import { italic } from '@foldkit-mde/plugins/italic'
 import { json } from '@foldkit-mde/plugins/json'
 import { link, linkInput } from '@foldkit-mde/plugins/link'
+import { strikethrough } from '@foldkit-mde/plugins/strikethrough'
 import { underline } from '@foldkit-mde/plugins/underline'
 import { Option } from 'effect'
 import { Runtime } from 'foldkit'
@@ -55,6 +56,13 @@ const editor = Editor.make({
       plugin: underline,
       shortcut: 'u',
       inputType: 'formatUnderline',
+    },
+    {
+      kind: 'Button',
+      label: 'Strikethrough',
+      shortLabel: 'S',
+      plugin: strikethrough,
+      inputType: 'formatStrikeThrough',
     },
     {
       kind: 'Input',

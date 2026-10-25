@@ -5,6 +5,7 @@ export interface Inline {
   readonly bold: boolean
   readonly italic: boolean
   readonly underline: boolean
+  readonly strikethrough: boolean
   readonly href?: string
 }
 
@@ -26,7 +27,7 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
   let cursor = 0
 
   for (const match of source.matchAll(
-    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n*_`<>\\]+)\]\(([^\s()<>\\]+)\)/g,
+    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n*_`<>\\~]+)\]\(([^\s()<>\\]+)\)|~~([^~\r\n]+)~~/g,
   )) {
     const href = match[5]
 
@@ -49,12 +50,13 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
         bold: false,
         italic: false,
         underline: false,
+        strikethrough: false,
       })
     }
 
-    const text = match[1] ?? match[3] ?? match[4] ?? ''
+    const text = match[1] ?? match[3] ?? match[4] ?? match[6] ?? ''
     const stars = match[2]?.length ?? 0
-    const prefix = match[1] !== undefined ? 3 : stars || 1
+    const prefix = match[1] !== undefined ? 3 : match[6] !== undefined ? 2 : stars || 1
     const start = offset + match.index + prefix
 
     if (href !== undefined) {
@@ -65,6 +67,7 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
         bold: false,
         italic: false,
         underline: false,
+        strikethrough: false,
         href,
       })
     } else {
@@ -75,6 +78,7 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
           bold: inline.bold || stars >= 2,
           italic: inline.italic || stars === 1 || stars === 3,
           underline: inline.underline || match[1] !== undefined,
+          strikethrough: inline.strikethrough || match[6] !== undefined,
         })),
       )
     }
@@ -90,6 +94,7 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
       bold: false,
       italic: false,
       underline: false,
+      strikethrough: false,
     })
   }
 
@@ -119,7 +124,9 @@ export const parseBlock = (source: string, start = 0): Block => {
     (heading !== undefined ||
       !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/m.test(source)) &&
     !inlines.some(
-      (inline) => inline.href !== undefined && (inline.bold || inline.italic || inline.underline),
+      (inline) =>
+        inline.href !== undefined &&
+        (inline.bold || inline.italic || inline.underline || inline.strikethrough),
     ) &&
     !/[*_`[\]<>\\|]/.test(plain)
 

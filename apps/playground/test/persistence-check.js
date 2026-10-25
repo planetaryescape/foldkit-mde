@@ -14,7 +14,7 @@ async function checkPersistence() {
 
   const button = (doc, name) =>
     Array.from(doc?.querySelectorAll('button') ?? []).find(
-      (element) => element.textContent === name,
+      (element) => (element.getAttribute('aria-label') ?? element.textContent) === name,
     )
 
   const source = (doc) => doc?.querySelector('#mde-surface')?.dataset.source
@@ -30,11 +30,13 @@ async function checkPersistence() {
     await until(() => source(doc) === text)
   }
 
-  const fixture = '### Exact **Markdown** and *italic* <u>underline</u>\n\n::music{id="preserve"}\n'
+  const fixture =
+    '### Exact **Markdown** and *italic* <u>underline</u> ~~strike~~\n\n::music{id="preserve"}\n'
+
   await until(() => button(document, 'Markdown'))
   await setSource(
     document,
-    'Exact **Markdown** and *italic* <u>underline</u>\n\n::music{id="preserve"}\n',
+    'Exact **Markdown** and *italic* <u>underline</u> ~~strike~~\n\n::music{id="preserve"}\n',
   )
   await until(() => !button(document, 'Heading 3').disabled)
   button(document, 'Heading 3').click()
@@ -52,13 +54,14 @@ async function checkPersistence() {
     assert(button(frame.contentDocument, 'Undo').disabled, 'Restart resets history')
     assert(
       frame.contentDocument.querySelector('.mde-visual > h3')?.textContent ===
-        'Exact Markdown and italic underline',
+        'Exact Markdown and italic underline strike',
       'Autosaved heading conversion reloads as an editable semantic heading',
     )
     assert(
       frame.contentDocument.querySelector('h3 em')?.textContent === 'italic' &&
-        frame.contentDocument.querySelector('h3 u')?.textContent === 'underline',
-      'Autosave and reload retain italic and underline semantics',
+        frame.contentDocument.querySelector('h3 u')?.textContent === 'underline' &&
+        frame.contentDocument.querySelector('h3 s')?.textContent === 'strike',
+      'Autosave and reload retain italic, underline and strikethrough semantics',
     )
     assert(
       frame.contentDocument.querySelector('#mde-surface').dataset.mode === 'Visual',

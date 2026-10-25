@@ -25,6 +25,9 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             tool.shortcut ? `${tool.label} (Ctrl/⌘+${tool.shortcut.toUpperCase()})` : tool.label,
           ),
           h.Disabled(tool.plugin.apply(model.source, model.selection) === undefined),
+          ...(tool.active
+            ? [h.AriaPressed(String(tool.active(model.source, model.selection)))]
+            : []),
           ...(tool.group
             ? [
                 h.Popovertarget(`mde-group-${encodeURIComponent(tool.group)}`),
@@ -40,7 +43,17 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             }),
           ),
         ],
-        [tool.shortLabel ?? tool.label],
+        [
+          tool.shortLabel ?? tool.label,
+          ...(tool.group && tool.active
+            ? [
+                h.span(
+                  [h.Class('mde-menu-selection'), h.AriaHidden(true)],
+                  [tool.active(model.source, model.selection) ? '✓' : ''],
+                ),
+              ]
+            : []),
+        ],
       )
 
     return h.section(
@@ -77,9 +90,37 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
               ],
             ),
             h.div(
+              [h.Class('mde-block-actions'), h.AriaLabel('Block formatting')],
+              [
+                ...new Set(
+                  tools.flatMap((tool) =>
+                    tool.kind === 'Button' && tool.group ? [tool.group] : [],
+                  ),
+                ),
+              ].map((group) => {
+                const id = `mde-group-${encodeURIComponent(group)}`
+
+                return h.div(
+                  [h.Class('mde-tool-group')],
+                  [
+                    h.button(
+                      [h.Type('button'), h.Class('mde-group-trigger'), h.Popovertarget(id)],
+                      [group, h.span([h.Class('mde-chevron'), h.AriaHidden(true)], [])],
+                    ),
+                    h.div(
+                      [h.Id(id), h.Popover('auto'), h.Class('mde-format-menu'), h.AriaLabel(group)],
+                      tools.flatMap((tool) =>
+                        tool.kind === 'Button' && tool.group === group ? [formatButton(tool)] : [],
+                      ),
+                    ),
+                  ],
+                )
+              }),
+            ),
+            h.div(
               [h.Class('mde-actions')],
               [
-                ...tools.flatMap((tool, index) => {
+                ...tools.flatMap((tool) => {
                   if (tool.kind === 'Input')
                     return [
                       h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
@@ -97,32 +138,7 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                       ),
                     ]
 
-                  if (!tool.group) return [formatButton(tool)]
-
-                  const group = tool.group
-
-                  if (
-                    tools
-                      .slice(0, index)
-                      .some((item) => item.kind === 'Button' && item.group === group)
-                  )
-                    return []
-
-                  const id = `mde-group-${encodeURIComponent(group)}`
-
-                  return [
-                    h.button(
-                      [h.Type('button'), h.Class('mde-group-trigger'), h.Popovertarget(id)],
-                      [group, h.span([h.Class('mde-chevron'), h.AriaHidden(true)], [])],
-                    ),
-                    h.div(
-                      [h.Id(id), h.Popover('auto'), h.Class('mde-format-menu'), h.AriaLabel(group)],
-                      tools.flatMap((item) =>
-                        item.kind === 'Button' && item.group === group ? [formatButton(item)] : [],
-                      ),
-                    ),
-                    h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
-                  ]
+                  return tool.group ? [] : [formatButton(tool)]
                 }),
                 h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
                 h.button(

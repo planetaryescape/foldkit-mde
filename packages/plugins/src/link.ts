@@ -106,8 +106,16 @@ const apply = (
       after += spelling(inline, inline.text.slice(right))
     }
 
-    const prefix = block.heading?.prefix ?? ''
-    const text = prefix + before + `[${selected}](${url})` + after + (block.heading?.suffix ?? '')
+    const prefix = block.heading?.prefix ?? block.list?.prefix ?? ''
+
+    const text =
+      prefix +
+      before +
+      `[${selected}](${url})` +
+      after +
+      (block.heading?.suffix ?? '') +
+      (block.alignment?.suffix ?? '')
+
     const proposed = parseBlock(text, block.start)
 
     if (!proposed.editable || !proposed.inlines.some((inline) => inline.href === url))

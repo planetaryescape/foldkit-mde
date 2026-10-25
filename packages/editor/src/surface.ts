@@ -3,7 +3,7 @@ import { Effect, Queue, Schema, Stream } from 'effect'
 import * as Command from 'foldkit/command'
 import * as Mount from 'foldkit/mount'
 
-import { read, renderVisual, split } from './document'
+import { backspace, read, renderVisual, split } from './document'
 import { Formatted, Message, type FormattingTool } from './formatting'
 
 const fields = { source: Schema.String, mode: Mode, selection: Selection }
@@ -295,8 +295,14 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
                   const adjacent =
                     entry?.node instanceof Element
                       ? forward
-                        ? entry.node.nextElementSibling
-                        : entry.node.previousElementSibling
+                        ? (entry.node.nextElementSibling ??
+                          (entry.node instanceof HTMLLIElement
+                            ? entry.node.parentElement?.nextElementSibling
+                            : null))
+                        : (entry.node.previousElementSibling ??
+                          (entry.node instanceof HTMLLIElement
+                            ? entry.node.parentElement?.previousElementSibling
+                            : null))
                       : null
 
                   if (
@@ -361,6 +367,18 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             const beforeinput = (event: Event) => {
               if (!(event instanceof InputEvent) || composing) return
               select()
+
+              if (event.inputType === 'deleteContentBackward') {
+                const visual = field()
+                const transaction = visual ? backspace(visual) : undefined
+
+                if (transaction) {
+                  event.preventDefault()
+                  emit(CoreMessage.cases.Applied.make({ transaction }))
+
+                  return
+                }
+              }
 
               if (event.inputType === 'insertParagraph') {
                 const visual = field()

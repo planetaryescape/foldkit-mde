@@ -69,10 +69,11 @@ test('heading conversion preserves inline source, surrounding bytes and selectio
   expect(heading(1).apply('words', { start: 2, end: 2 })?.selection).toEqual({ start: 4, end: 4 })
   expect(heading(6).apply('', { start: 0, end: 0 })?.text).toBe('###### ')
   expect(heading(2).apply('## Same', { start: 3, end: 3 })).toBeUndefined()
+  expect(heading(1).apply('- words', { start: 2, end: 2 })?.text).toBe('# words')
 
   for (const protectedSource of [
     '```\nwords\n```',
-    '- words',
+    '- [ ] task',
     '# `words`',
     'one\ntwo',
     '::music{id="x"}',

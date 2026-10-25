@@ -11,6 +11,7 @@ export type FormattingTool =
       readonly shortLabel?: string
       readonly shortcut?: string
       readonly inputType?: string
+      readonly active?: (source: string, selection: Core.Selection) => boolean
     }
   | {
       readonly kind: 'Input'

@@ -9,7 +9,7 @@ test('JSON describes text, marks and raw blocks without losing original Markdown
   const document = json.project(source)
   expect(document.nodes.map((node) => node._tag)).toEqual(['Paragraph', 'Raw'])
   expect(document).toMatchObject({
-    version: 4,
+    version: 5,
     source,
     nodes: [
       {
@@ -59,7 +59,7 @@ test('JSON projects link destinations without treating unsafe raw syntax as acti
 test('JSON distinguishes semantic heading levels from paragraphs and protected Markdown', () => {
   const source = '### A **longer** [track](/mix) ###\nParagraph\n\n# `unsupported`'
   const document = json.project(source)
-  expect(document.version).toBe(4)
+  expect(document.version).toBe(5)
   expect(document.nodes.map((node) => node._tag)).toEqual(['Heading', 'Paragraph', 'Raw'])
   expect(document.nodes[0]).toMatchObject({
     level: 3,
@@ -75,7 +75,7 @@ test('JSON distinguishes semantic heading levels from paragraphs and protected M
   expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
 })
 
-test('JSON version 4 retains each inline mark independently', () => {
+test('JSON version 5 retains each inline mark independently', () => {
   const document = json.project('A *longer* <u>track</u> and <u>~~***mix***~~</u>.')
   expect(document.nodes[0]).toMatchObject({
     children: [
@@ -89,5 +89,16 @@ test('JSON version 4 retains each inline mark independently', () => {
     ],
   })
   expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
-  expect(() => Schema.decodeUnknownSync(JsonDocument)({ ...document, version: 3 })).toThrow()
+  expect(() => Schema.decodeUnknownSync(JsonDocument)({ ...document, version: 4 })).toThrow()
+})
+
+test('JSON describes flat list markers and source-backed alignment', () => {
+  const document = json.project('- **First** {align=center}\n7) Second\n\n## Heading {align=right}')
+  expect(document.nodes.map((node) => node._tag)).toEqual(['ListItem', 'ListItem', 'Heading'])
+  expect(document.nodes).toMatchObject([
+    { kind: 'bullet', alignment: 'center', children: [{ text: 'First', bold: true }] },
+    { kind: 'ordered', ordinal: 7, children: [{ text: 'Second' }] },
+    { level: 2, alignment: 'right' },
+  ])
+  expect(Schema.decodeSync(JsonDocument)(document)).toEqual(document)
 })

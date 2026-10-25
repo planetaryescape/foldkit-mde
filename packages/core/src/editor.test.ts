@@ -139,6 +139,30 @@ test('inline italic and attribute-free underline map visible text without enabli
     expect(parse(source)[0]?.editable).toBe(false)
 })
 
+test('flat lists retain exact markers and map visible selection without exposing alignment attributes', () => {
+  const source =
+    '- First\r\n13) **Second** {align=right}\r\n\r\n- [ ] task\r\n\r\n```md\r\n- literal\r\n```'
+
+  const blocks = parse(source)
+  expect(blocks.map((block) => block.list?.kind)).toEqual([
+    'bullet',
+    'ordered',
+    'bullet',
+    undefined,
+  ])
+  expect(blocks.map((block) => block.editable)).toEqual([true, true, false, false])
+  const item = blocks[1]
+
+  if (!item) throw new Error('Expected ordered item')
+  expect(item.list).toEqual({ kind: 'ordered', ordinal: 13, prefix: '13) ' })
+  expect(item.alignment?.value).toBe('right')
+  expect(sourceOffset(item, 0)).toBe(15)
+  expect(sourceOffset(item, 6, 'backward')).toBe(21)
+  expect(item.inlines.map((inline) => inline.text).join('')).toBe('Second')
+
+  for (const block of blocks) expect(source.slice(block.start, block.end)).toBe(block.source)
+})
+
 test('undo and redo restore selection across modes without recording a source no-op', () => {
   const selected = update(
     init('longer track'),

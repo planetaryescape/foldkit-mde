@@ -12,13 +12,17 @@ export const heading = (level: 0 | 1 | 2 | 3 | 4 | 5 | 6): FormattingPlugin => (
       (block) => block.start <= selection.start && block.end >= selection.end,
     )
 
-    if (!block?.editable || /[\r\n]/.test(block.source) || (block.heading?.level ?? 0) === level)
+    if (
+      !block?.editable ||
+      /[\r\n]/.test(block.source) ||
+      (!block.list && (block.heading?.level ?? 0) === level)
+    )
       return undefined
-    const prefix = block.heading?.prefix ?? ''
-    const suffix = block.heading?.suffix ?? ''
+    const prefix = block.heading?.prefix ?? block.list?.prefix ?? ''
+    const suffix = (block.heading?.suffix ?? '') + (block.alignment?.suffix ?? '')
     const content = block.source.slice(prefix.length, block.source.length - suffix.length)
     const marker = level === 0 ? '' : `${'#'.repeat(level)} `
-    const text = marker + content
+    const text = marker + content + (block.alignment?.suffix ?? '')
     const converted = parseBlock(text)
 
     if (

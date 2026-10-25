@@ -59,6 +59,7 @@
 .mde-toolbar,
 .mde-modes,
 .mde-mode-switch,
+.mde-block-actions,
 .mde-actions {
   display: flex;
   align-items: center;
@@ -74,6 +75,7 @@
 }
 
 .mde-modes,
+.mde-block-actions,
 .mde-actions {
   flex: 0 0 auto;
   flex-wrap: nowrap;
@@ -160,7 +162,15 @@
 }
 
 .mde-format-menu button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   text-align: left;
+}
+
+.mde-menu-selection {
+  min-width: 1rem;
+  text-align: right;
 }
 
 .mde-format-input {
@@ -289,6 +299,15 @@
   font:
     1.15rem / 1.8 Georgia,
     serif;
+}
+
+.mde-list {
+  margin: 0.8rem 0;
+  padding-inline-start: 1.75rem;
+}
+
+.mde-list > .mde-paragraph {
+  margin-bottom: 0.2rem;
 }
 
 .mde-visual > h1,

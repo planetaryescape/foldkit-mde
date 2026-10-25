@@ -73,13 +73,15 @@ const position = (
   offset: number,
   affinity: 'forward' | 'backward',
 ): number => {
-  if (node === root) {
-    const next = entries[offset]
-    const previous = entries[offset - 1]
+  if (node === root || node instanceof HTMLUListElement || node instanceof HTMLOListElement) {
+    const nextNode = node.childNodes[offset]
+    const previousNode = node.childNodes[offset - 1]
+    const next = entries.find((entry) => nextNode?.contains(entry.node))
+    const previous = entries.findLast((entry) => previousNode?.contains(entry.node))
+    const start = node === root ? next?.block.start : next?.block.inlines[0]?.start
+    const end = node === root ? previous?.block.end : previous?.block.inlines.at(-1)?.end
 
-    return affinity === 'forward'
-      ? (next?.block.start ?? previous?.block.end ?? 0)
-      : (previous?.block.end ?? next?.block.start ?? 0)
+    return affinity === 'forward' ? (start ?? end ?? 0) : (end ?? start ?? 0)
   }
 
   const entry = entries.find((value) => value.node === node || value.node.contains(node))
@@ -101,7 +103,13 @@ export const read = (root: Element) => {
   let source = ''
   let previousIndex = -1
 
-  for (const node of root.childNodes) {
+  const nodes = Array.from(root.childNodes).flatMap((node) =>
+    node instanceof HTMLUListElement || node instanceof HTMLOListElement
+      ? Array.from(node.childNodes)
+      : [node],
+  )
+
+  for (const node of nodes) {
     const element = node instanceof HTMLElement ? node : undefined
 
     const index =
@@ -125,11 +133,19 @@ export const read = (root: Element) => {
           : serialize(node)
 
     const heading = originalBlock?.heading
-    const prefix = heading ? heading.prefix.replace(/([^ \t])$/, '$1 ') : ''
+
+    const prefix = heading
+      ? heading.prefix.replace(/([^ \t])$/, '$1 ')
+      : (originalBlock?.list?.prefix ?? '')
+
     const suffix = heading?.suffix ?? ''
 
     const spelling =
-      prefix + serialized + (serialized && suffix.startsWith('#') ? ' ' : '') + suffix
+      prefix +
+      serialized +
+      (serialized && suffix.startsWith('#') ? ' ' : '') +
+      suffix +
+      (originalBlock?.alignment?.suffix ?? '')
 
     const text =
       originalBlock && serialized === element?.dataset['baseline'] ? originalBlock.source : spelling
@@ -214,19 +230,74 @@ export const split = (root: Element): Transaction | undefined => {
   const prefix = serialize(before.cloneContents())
   const suffix = serialize(after.cloneContents())
   const heading = first.block.heading
+  const list = first.block.list
+  const alignment = first.block.alignment?.suffix ?? ''
+
+  if (list) {
+    const empty = first === last && first.block.inlines.every((inline) => !inline.text)
+    const marker = list.kind === 'ordered' ? `${list.ordinal + 1}. ` : list.prefix
+    const newline = state.source.includes('\r\n') ? '\r\n' : '\n'
+    const next = state.entries[state.entries.indexOf(last) + 1]
+
+    const gap = next ? state.source.slice(last.block.end, next.block.start) : ''
+
+    const exit = next
+      ? newline.repeat(Math.max(0, 3 - (gap.match(/\r\n|\n|\r/g)?.length ?? 0)))
+      : ''
+
+    const text = empty
+      ? alignment + exit
+      : `${list.prefix}${prefix}${alignment}${newline}${marker}${suffix}${alignment}`
+
+    const caret =
+      first.block.start +
+      (empty
+        ? 0
+        : list.prefix.length + prefix.length + alignment.length + newline.length + marker.length)
+
+    return {
+      start: first.block.start,
+      end: last.block.end,
+      text,
+      selection: { start: caret, end: caret },
+    }
+  }
 
   const emptyHeading =
     heading && first === last && first.block.inlines.every((inline) => !inline.text)
 
   const opening = heading && !emptyHeading ? heading.prefix.replace(/([^ \t])$/, '$1 ') : ''
-  const text = emptyHeading ? '' : `${opening}${prefix}\n\n${suffix}`
-  const caret = first.block.start + (emptyHeading ? 0 : opening.length + prefix.length + 2)
+  const text = emptyHeading ? alignment : `${opening}${prefix}${alignment}\n\n${suffix}${alignment}`
+
+  const caret =
+    first.block.start + (emptyHeading ? 0 : opening.length + prefix.length + alignment.length + 2)
 
   return {
     start: first.block.start,
     end: last.block.end,
     text,
     selection: { start: caret, end: caret },
+  }
+}
+
+export const backspace = (root: Element): Transaction | undefined => {
+  const state = read(root)
+  const selected = state.selection
+
+  if (!selected || selected.start !== selected.end) return undefined
+
+  const block = state.entries.find(
+    (entry) => entry.block.start <= selected.start && entry.block.end >= selected.start,
+  )?.block
+
+  if (!block?.editable || !block.list || selected.start !== block.inlines[0]?.start)
+    return undefined
+
+  return {
+    start: block.start,
+    end: block.end,
+    text: block.source.slice(block.list.prefix.length),
+    selection: { start: block.start, end: block.start },
   }
 }
 
@@ -244,10 +315,15 @@ export const renderVisual = (
   field.setAttribute('aria-multiline', 'true')
   field.dataset['source'] = source
   const entries: Array<Entry> = []
+  let listRoot: HTMLUListElement | HTMLOListElement | undefined
 
   for (const block of parse(source)) {
     const node = document.createElement(
-      block.editable && block.heading ? `h${block.heading.level}` : 'div',
+      block.editable && block.list
+        ? 'li'
+        : block.editable && block.heading
+          ? `h${block.heading.level}`
+          : 'div',
     )
 
     node.dataset['start'] = String(block.start)
@@ -255,6 +331,8 @@ export const renderVisual = (
 
     if (block.editable) {
       node.className = 'mde-paragraph'
+
+      if (block.alignment) node.style.textAlign = block.alignment.value
       let anchor: HTMLAnchorElement | undefined
       let linkStart: number | undefined
 
@@ -315,7 +393,25 @@ export const renderVisual = (
         ? ''
         : serialize(node)
       : block.source
-    field.append(node)
+
+    if (block.editable && block.list && node instanceof HTMLLIElement) {
+      const ordered = block.list.kind === 'ordered'
+
+      if (!listRoot || listRoot instanceof HTMLOListElement !== ordered) {
+        listRoot = document.createElement(ordered ? 'ol' : 'ul')
+        listRoot.className = 'mde-list'
+
+        if (listRoot instanceof HTMLOListElement && block.list.kind === 'ordered')
+          listRoot.start = block.list.ordinal
+        field.append(listRoot)
+      }
+
+      listRoot.append(node)
+    } else {
+      listRoot = undefined
+      field.append(node)
+    }
+
     entries.push({ node, block })
   }
 

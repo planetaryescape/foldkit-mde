@@ -31,12 +31,12 @@ async function checkPersistence() {
   }
 
   const fixture =
-    '### Exact **Markdown** and *italic* <u>underline</u> ~~strike~~\n\n::music{id="preserve"}\n'
+    '### Exact **Markdown** and *italic* <u>underline</u> ~~strike~~\n\n- First **track** {align=center}\n- Second track\n\n3. Third track {align=right}\n4. Fourth track\n\n::music{id="preserve"}\n'
 
   await until(() => button(document, 'Markdown'))
   await setSource(
     document,
-    'Exact **Markdown** and *italic* <u>underline</u> ~~strike~~\n\n::music{id="preserve"}\n',
+    'Exact **Markdown** and *italic* <u>underline</u> ~~strike~~\n\n- First **track** {align=center}\n- Second track\n\n3. Third track {align=right}\n4. Fourth track\n\n::music{id="preserve"}\n',
   )
   await until(() => !button(document, 'Heading 3').disabled)
   button(document, 'Heading 3').click()
@@ -62,6 +62,14 @@ async function checkPersistence() {
         frame.contentDocument.querySelector('h3 u')?.textContent === 'underline' &&
         frame.contentDocument.querySelector('h3 s')?.textContent === 'strike',
       'Autosave and reload retain italic, underline and strikethrough semantics',
+    )
+    assert(
+      frame.contentDocument.querySelectorAll('.mde-visual ul > li').length === 2 &&
+        frame.contentDocument.querySelectorAll('.mde-visual ol > li').length === 2 &&
+        frame.contentDocument.querySelector('.mde-visual ol')?.start === 3 &&
+        frame.contentDocument.querySelector('.mde-visual ul > li')?.style.textAlign === 'center' &&
+        frame.contentDocument.querySelector('.mde-visual ol > li')?.style.textAlign === 'right',
+      'Autosave reload retains semantic lists, starting ordinal and source-backed alignment',
     )
     assert(
       frame.contentDocument.querySelector('#mde-surface').dataset.mode === 'Visual',

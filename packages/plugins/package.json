@@ -9,6 +9,7 @@
     "./underline": "./src/marks.ts",
     "./strikethrough": "./src/marks.ts",
     "./heading": "./src/heading.ts",
+    "./blocks": "./src/blocks.ts",
     "./link": "./src/link.ts",
     "./json": "./src/json.ts",
     "./markdown": "./src/markdown.ts"

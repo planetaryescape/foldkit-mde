@@ -45,3 +45,13 @@ Outcome: a compact page header and persistent toolbar give the document more spa
 Acceptance: heading, link and inline formatting retain selection and shared history; Escape and outside clicks close popovers without editing. Cards support keyboard focus, source editing, adjacent navigation and undoable whole-block deletion. Controls, popovers and source view fit desktop, tablet and narrow layouts. Preserve local-save/recovery behavior, including reload of the new marks. Check the rendered states, real pointer/keyboard flow, mutation-checked generated mark histories, precommit, build and all browser suites.
 
 Non-goals: floating selection toolbar, simultaneous split view, full CommonMark nesting, extra UI dependencies and broader browser-support claims. CSS anchor positioning is verified in Chromium only.
+
+## S05: Flat lists and block alignment
+
+Status: implemented and verified locally on `feat/editor-ui-polish`; see the implementation log for delivery evidence.
+
+Outcome: host-selected Lists and Align menus use pure transactions, existing history and local saving. Flat unindented bulleted/numbered items share semantic list containers in the single editing host. Enter continues a list, empty-item Enter exits it, and Backspace at the item start removes its marker. Left/Center/Right/Justify use an explicit source suffix rather than hidden state. JSON version 5 adds ListItem nodes and optional alignment.
+
+Acceptance: convert selected single-line blocks in both modes, retain inline marks and unrelated source, undo conversions, continue/exit lists without joining neighboring paragraphs, and reload semantic lists/alignment from autosave. Inspect open menus and desktop/intermediate/narrow layouts, real pointer/keyboard input, mutation-checked generated source histories, precommit, build and all browser suites.
+
+Non-goals: nested/task lists, automatic marker detection while typing, full CommonMark list semantics, portable Markdown alignment, dynamic plugin registration and gbfm integration.

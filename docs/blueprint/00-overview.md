@@ -1,6 +1,6 @@
 # Product overview
 
-Status: accepted product direction with host-selected formatting, ATX headings and local saving. Inspected on 2026-10-25. See [the architecture](architecture.html) for package boundaries and [decisions](02-decision-log.md) for constraints. The architecture visual predates headings and the UI improvement drive; current editing behavior and JSON version 4 are described in [package usage](../../README.md#settled-design-direction).
+Status: accepted product direction with host-selected formatting, ATX headings and local saving. Inspected on 2026-10-25. See [the architecture](architecture.html) for package boundaries and [decisions](02-decision-log.md) for constraints. The architecture visual predates headings and the UI improvement drive; current editing behavior and JSON version 5 are described in [package usage](../../README.md#settled-design-direction).
 
 ## Goal and audience
 
@@ -12,7 +12,8 @@ Users should move between editable Visual mode and raw Markdown without maintain
 
 - Markdown source is authoritative. Visual paragraphs, ATX headings, bold, asterisk italic, attribute-free underline, double-tilde strikethrough and links with those inline marks are a derived editable view, with unsupported syntax preserved rather than silently rewritten.
 - One continuous Visual editing host shares transactions and undo/redo with raw mode.
-- Formatting and representation contracts belong to core. Inline mark/link/heading implementations belong to plugins; the host selects Button/Input tools and the editor routes accepted transactions to core. Markdown and versioned JSON are representations, not separate stores. JSON version 4 records all four inline marks and distinguishes Heading nodes by level.
+- Flat, unindented bulleted and numbered lists support conversion, typing, Enter continuation, empty-item exit and Backspace marker removal. Nested/task syntax remains protected. Block alignment uses an explicit trailing `{align=…}` extension, not portable CommonMark.
+- Formatting and representation contracts belong to core. Inline mark/link/heading/list/alignment implementations belong to plugins; the host selects Button/Input tools and the editor routes accepted transactions to core. Markdown and versioned JSON are representations, not separate stores. JSON version 5 records all four inline marks, Heading levels, ListItem kind/ordinal and optional block alignment.
 - Protected source cards are focusable groups. Enter/F2 opens their source; arrows move between cards and text; Delete/Backspace uses shared history and undo restores the block's keyboard focus.
 - Opt-in local persistence provides loading, autosave, retry, flush, conflicts, and previous-checkpoint preview/export through an Effect service. The playground selects native IndexedDB.
 - Reload restores committed source with fresh session history, caret, and Visual mode. Saved locally means transaction completion, not backup or a guarantee against browser clearing.

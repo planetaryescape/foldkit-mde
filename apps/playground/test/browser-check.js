@@ -93,7 +93,12 @@ async function checkEditor() {
       Math.max(...actions.map((rect) => rect.top)) <
         Math.min(...actions.map((rect) => rect.bottom)) &&
         actions.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right) &&
-        editor.querySelector('.mde-toolbar').getBoundingClientRect().height < 120,
+        editor.querySelector('.mde-toolbar').getBoundingClientRect().height < 190 &&
+        [...editor.querySelectorAll('.mde-block-actions > .mde-tool-group')].every((group) => {
+          const rect = group.getBoundingClientRect()
+
+          return rect.left >= bounds.left && rect.right <= bounds.right
+        }),
       `Toolbar actions stay together and fit at editor width ${width}`,
     )
   }
@@ -272,6 +277,110 @@ async function checkEditor() {
     await until(() => source() === formatted.replace('https://example.test/mixed', '/replacement'))
     await action('Undo')
     await until(() => source() === formatted)
+    await action('Undo')
+    await until(() => source() === fixture)
+  }
+
+  for (const editingMode of ['Visual', 'Markdown']) {
+    for (const [name, tag, listed] of [
+      ['Bulleted list', 'ul', '- First **mix**\n- Second track'],
+      ['Numbered list', 'ol', '1. First **mix**\n2. Second track'],
+    ]) {
+      const fixture = 'First **mix**\n\nSecond track\n\n::music{id="keep"}'
+      await setSource(fixture)
+
+      if (editingMode === 'Markdown') {
+        await mode('Markdown')
+        const input = document.querySelector('textarea')
+        input.focus()
+        input.setSelectionRange(0, fixture.indexOf('\n\n::music'))
+        document.dispatchEvent(new Event('selectionchange'))
+      } else {
+        const paragraphs = document.querySelectorAll('.mde-paragraph')
+        const range = document.createRange()
+        range.selectNodeContents(paragraphs[0])
+        range.setEnd(paragraphs[1].firstChild, 12)
+        document.querySelector('.mde-visual').focus()
+        window.getSelection().removeAllRanges()
+        window.getSelection().addRange(range)
+        document.dispatchEvent(new Event('selectionchange'))
+      }
+
+      await action(name)
+      await until(() => source() === listed + '\n\n::music{id="keep"}')
+      await mode('Visual')
+      assert(
+        document.querySelectorAll(`${tag} > li`).length === 2,
+        'List items share a semantic list',
+      )
+
+      for (const alignment of ['Center', 'Right', 'Justify', 'Left']) {
+        await action(alignment)
+        const suffix = alignment === 'Left' ? '' : ` {align=${alignment.toLowerCase()}}`
+        await until(
+          () =>
+            source() ===
+            listed
+              .split('\n')
+              .map((line) => line + suffix)
+              .join('\n') +
+              '\n\n::music{id="keep"}',
+        )
+        assert(
+          [...document.querySelectorAll('li')].every(
+            (item) =>
+              getComputedStyle(item).textAlign === alignment.toLowerCase() ||
+              (alignment === 'Left' && getComputedStyle(item).textAlign === 'start'),
+          ),
+          'Alignment applies to every selected list item',
+        )
+      }
+
+      await action(name)
+      await until(() => source() === fixture)
+      await action('Undo')
+      await until(() => source() === listed + '\n\n::music{id="keep"}')
+      await mode('Markdown')
+      await mode('Visual')
+      assert(source() === listed + '\n\n::music{id="keep"}', 'Mode switches preserve list source')
+    }
+  }
+
+  for (const [fixture, offset, inputType, expected] of [
+    ['7) First\n8) Second', 3, 'insertParagraph', '7) First\n8) Sec\n9. ond'],
+    ['- First\n- ', 0, 'insertParagraph', '- First\n'],
+    ['- \n- Second', 0, 'insertParagraph', '\n\n\n- Second'],
+    ['- First\n- \n\nAfter', 0, 'insertParagraph', '- First\n\n\n\nAfter'],
+    ['- First\n- Second', 0, 'deleteContentBackward', '- First\nSecond'],
+  ]) {
+    await setSource(fixture)
+    const items = document.querySelectorAll('li')
+    const item = fixture.startsWith('- \n') ? items[0] : items[items.length - 1]
+    select(item, item.firstChild, offset)
+    item.dispatchEvent(
+      new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType }),
+    )
+    await until(() => source() === expected)
+
+    if (fixture === '- \n- Second')
+      assert(
+        document.querySelector('.mde-visual').firstElementChild.tagName === 'DIV',
+        'Exiting the first empty list item leaves an editable paragraph',
+      )
+
+    if (fixture.endsWith('\n\nAfter')) {
+      document.execCommand('insertText', false, 'New note')
+      await until(() => source() === '- First\n\nNew note\n\nAfter')
+      assert(
+        [...document.querySelectorAll('.mde-visual > .mde-paragraph')]
+          .map((element) => element.textContent)
+          .join('|') === 'New note|After',
+        'Typing after list exit cannot join the following paragraph',
+      )
+      await action('Undo')
+      await until(() => source() === expected)
+    }
+
     await action('Undo')
     await until(() => source() === fixture)
   }

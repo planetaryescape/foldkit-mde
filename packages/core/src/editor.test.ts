@@ -132,11 +132,90 @@ test('inline italic and attribute-free underline map visible text without enabli
     '*unfinished',
     '<u>unfinished',
     '**<img src=x>**',
-    '**[label](/mix)**',
-    '~~[label](/mix)~~',
-    '[~~label~~](/mix)',
+    '[<img src=x>](/mix)',
+    '[<u onclick="bad()">label</u>](/mix)',
+    '[**label**](javascript:evil)',
   ])
     expect(parse(source)[0]?.editable).toBe(false)
+})
+
+test('flat lists retain exact markers and map visible selection without exposing alignment attributes', () => {
+  const source =
+    '- First\r\n13) **Second** {align=right}\r\n\r\n- [ ] task\r\n\r\n```md\r\n- literal\r\n```'
+
+  const blocks = parse(source)
+  expect(blocks.map((block) => block.list?.kind)).toEqual([
+    'bullet',
+    'ordered',
+    'bullet',
+    undefined,
+  ])
+  expect(blocks.map((block) => block.editable)).toEqual([true, true, false, false])
+  const item = blocks[1]
+
+  if (!item) throw new Error('Expected ordered item')
+  expect(item.list).toEqual({ kind: 'ordered', ordinal: 13, prefix: '13) ' })
+  expect(item.alignment?.value).toBe('right')
+  expect(sourceOffset(item, 0)).toBe(15)
+  expect(sourceOffset(item, 6, 'backward')).toBe(21)
+  expect(item.inlines.map((inline) => inline.text).join('')).toBe('Second')
+
+  for (const block of blocks) expect(source.slice(block.start, block.end)).toBe(block.source)
+})
+
+test('single-level quotes retain inline spans and protect nested, structural and lazy multiline source', () => {
+  const source =
+    'Before\r\n> A **longer** [track](/mix)\r\n> <u>~~*mix*~~</u> {align=right}\r\n\r\nAfter'
+
+  const blocks = parse(source)
+  expect(blocks.map((block) => block.editable)).toEqual([true, true, true, true])
+  expect(blocks.map((block) => !!block.quote)).toEqual([false, true, true, false])
+  const quoted = blocks[1]
+
+  if (!quoted) throw new Error('Expected quote')
+  expect(quoted.quote?.prefix).toBe('> ')
+  expect(quoted.inlines.map((inline) => inline.text).join('')).toBe('A longer track')
+  expect(quoted.inlines.at(-1)?.href).toBe('/mix')
+  expect(sourceOffset(quoted, 2)).toBe(source.indexOf('longer'))
+  expect(visualOffset(quoted, source.indexOf('longer') + 3)).toBe(5)
+  expect(sourceOffset(quoted, 8, 'backward')).toBe(source.indexOf('longer') + 6)
+  expect(blocks[2]?.inlines[0]).toMatchObject({
+    italic: true,
+    underline: true,
+    strikethrough: true,
+  })
+  expect(blocks[2]?.alignment?.value).toBe('right')
+
+  for (const block of blocks) expect(source.slice(block.start, block.end)).toBe(block.source)
+
+  for (const text of ['>', '> ']) {
+    expect(parse(text)[0]?.editable).toBe(true)
+    expect(parse(text)[0]?.inlines[0]?.text).toBe('')
+  }
+
+  for (const text of [
+    '>> nested',
+    '> > nested',
+    '> # Heading',
+    '> - item',
+    '> 1. item',
+    '>     code',
+    '> ```code',
+    '> ::music{id="keep"}',
+    '> <div>html</div>',
+    '> words\nlazy continuation',
+    '> words\n> - nested list',
+    '> words\n> # nested heading',
+    ' > indented',
+    '>no space',
+    '```md\n> literal\n```',
+    '> [bad](javascript:evil)',
+  ]) {
+    const protectedBlocks = parse(text)
+    expect(protectedBlocks, text).toHaveLength(1)
+    expect(protectedBlocks[0]?.editable, text).toBe(false)
+    expect(protectedBlocks[0]?.source).toBe(text)
+  }
 })
 
 test('undo and redo restore selection across modes without recording a source no-op', () => {

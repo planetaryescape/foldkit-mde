@@ -1,5 +1,7 @@
+import { parse, type Selection } from '@foldkit-mde/core'
 import * as Editor from '@foldkit-mde/editor/persistence'
 import * as IndexedDb from '@foldkit-mde/persistence/indexed-db'
+import { alignment, list, quote } from '@foldkit-mde/plugins/blocks'
 import { bold } from '@foldkit-mde/plugins/bold'
 import { heading } from '@foldkit-mde/plugins/heading'
 import { italic } from '@foldkit-mde/plugins/italic'
@@ -22,6 +24,9 @@ Switch to Markdown to see the source. Your edits and undo history travel with yo
 ::music{type="album" id="late-night-frequencies"}
 `
 
+const selectedBlock = (source: string, selection: Selection) =>
+  parse(source).find((block) => block.start <= selection.start && block.end >= selection.end)
+
 const editor = Editor.make({
   key: { namespace: 'playground', documentId: 'welcome' },
   seed: source,
@@ -32,6 +37,43 @@ const editor = Editor.make({
       group: 'Text style',
       label: level === 0 ? 'Paragraph' : `Heading ${level}`,
       plugin: heading(level),
+      active: (source: string, selection: Selection) => {
+        const block = selectedBlock(source, selection)
+
+        return (
+          !!block?.editable && !block.list && !block.quote && (block.heading?.level ?? 0) === level
+        )
+      },
+    })),
+    {
+      kind: 'Button',
+      group: 'Text style',
+      label: 'Quote',
+      plugin: quote,
+      active: (source: string, selection: Selection) => {
+        const block = selectedBlock(source, selection)
+
+        return !!block?.editable && !!block.quote
+      },
+    },
+    ...(['bullet', 'ordered'] as const).map((kind) => ({
+      kind: 'Button' as const,
+      group: 'Lists',
+      label: kind === 'bullet' ? 'Bulleted list' : 'Numbered list',
+      plugin: list(kind),
+      active: (source: string, selection: Selection) =>
+        selectedBlock(source, selection)?.list?.kind === kind,
+    })),
+    ...(['left', 'center', 'right', 'justify'] as const).map((value) => ({
+      kind: 'Button' as const,
+      group: 'Align',
+      label: value[0]?.toUpperCase() + value.slice(1),
+      plugin: alignment(value),
+      active: (source: string, selection: Selection) => {
+        const block = selectedBlock(source, selection)
+
+        return !!block?.editable && (block.alignment?.value ?? 'left') === value
+      },
     })),
     {
       kind: 'Button',
@@ -68,10 +110,12 @@ const editor = Editor.make({
       kind: 'Input',
       label: 'Apply link',
       triggerLabel: 'Link',
+      shortcut: 'k',
+      paste: 'url',
       plugin: link,
       inputLabel: 'Link destination',
       readInput: linkInput,
-      hint: 'Select plain words or a whole link label. Use https, http, mailto or a relative URL. Empty removes the link.',
+      hint: 'Select words to add a link, or place the caret inside a link to edit it. Use https, http, mailto or a relative URL. Empty removes the link.',
     },
   ],
 })

@@ -67,7 +67,17 @@ export const inputView = (tool: Extract<FormattingTool, { kind: 'Input' }>) => {
             h.input([h.Type('text'), h.AriaLabel(tool.inputLabel), h.Autofocus(true)]),
           ],
         ),
-        h.button([h.Type('submit'), h.Disabled(selection.start === selection.end)], [tool.label]),
+        h.button(
+          [
+            h.Type('submit'),
+            h.Disabled(
+              selection.start === selection.end &&
+                tool.plugin.apply(source, selection, tool.readInput(source, selection)) ===
+                  undefined,
+            ),
+          ],
+          [tool.label],
+        ),
         h.span([h.Class('mde-format-hint')], [tool.hint]),
       ],
     )

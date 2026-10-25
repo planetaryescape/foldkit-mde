@@ -3,8 +3,9 @@ import { Effect, Queue, Schema, Stream } from 'effect'
 import * as Command from 'foldkit/command'
 import * as Mount from 'foldkit/mount'
 
-import { read, renderVisual, split } from './document'
+import { backspace, read, renderVisual, split } from './document'
 import { Formatted, Message, type FormattingTool } from './formatting'
+import { observe as observeLinkPreview } from './link-preview'
 
 const fields = { source: Schema.String, mode: Mode, selection: Selection }
 
@@ -52,9 +53,11 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
     execute: ({ element, source, mode, selection }) =>
       Stream.callback<Message>((queue) =>
         Effect.acquireRelease(
-          Effect.sync(() => {
+          Effect.gen(function* () {
             render(element, { source, mode, selection }, false)
+            yield* observeLinkPreview(element)
             let composing = false
+            let inputFrame = 0
 
             const emit = (message: Message) => {
               Queue.offerUnsafe(queue, message)
@@ -294,8 +297,14 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
                   const adjacent =
                     entry?.node instanceof Element
                       ? forward
-                        ? entry.node.nextElementSibling
-                        : entry.node.previousElementSibling
+                        ? (entry.node.nextElementSibling ??
+                          (entry.node instanceof HTMLLIElement
+                            ? entry.node.parentElement?.nextElementSibling
+                            : null))
+                        : (entry.node.previousElementSibling ??
+                          (entry.node instanceof HTMLLIElement
+                            ? entry.node.parentElement?.previousElementSibling
+                            : null))
                       : null
 
                   if (
@@ -328,14 +337,27 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
 
               if (!(event.metaKey || event.ctrlKey) || event.altKey) return
               const key = event.key.toLowerCase()
-              const tool = tools.find((tool) => tool.kind === 'Button' && tool.shortcut === key)
+              const tool = tools.find((tool) => tool.shortcut === key)
 
               if (tool || key === 'z' || key === 'y') {
                 event.preventDefault()
                 select()
 
-                if (tool) format(tool.plugin.id)
-                else
+                if (tool?.kind === 'Button') format(tool.plugin.id)
+                else if (tool?.kind === 'Input') {
+                  cancelAnimationFrame(inputFrame)
+                  // Selection updates replace keyed forms. Open after Foldkit has painted that update.
+                  inputFrame = requestAnimationFrame(() => {
+                    inputFrame = requestAnimationFrame(() => {
+                      inputFrame = 0
+                      editor
+                        .querySelector<HTMLButtonElement>(
+                          `button[popovertarget="mde-input-${tool.plugin.id}"]`,
+                        )
+                        ?.click()
+                    })
+                  })
+                } else
                   emit(
                     key === 'y' || event.shiftKey
                       ? CoreMessage.cases.Redo.make({})
@@ -347,6 +369,18 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             const beforeinput = (event: Event) => {
               if (!(event instanceof InputEvent) || composing) return
               select()
+
+              if (event.inputType === 'deleteContentBackward') {
+                const visual = field()
+                const transaction = visual ? backspace(visual) : undefined
+
+                if (transaction) {
+                  event.preventDefault()
+                  emit(CoreMessage.cases.Applied.make({ transaction }))
+
+                  return
+                }
+              }
 
               if (event.inputType === 'insertParagraph') {
                 const visual = field()
@@ -402,19 +436,68 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             }
 
             const paste = (event: Event) => {
-              if (!(event instanceof ClipboardEvent) || !field()) return
-              event.preventDefault()
+              if (!(event instanceof ClipboardEvent) || composing) return
 
-              if (document.activeElement?.closest('.mde-protected')) return
+              if (document.activeElement?.closest('.mde-protected')) {
+                event.preventDefault()
+
+                return
+              }
+
+              const target = document.activeElement
+              const visual = field()
+              const clipboard = event.clipboardData?.getData('text/plain') ?? ''
+              const url = clipboard.trim()
+
+              const state =
+                target instanceof HTMLTextAreaElement
+                  ? {
+                      source: target.value,
+                      selection: { start: target.selectionStart, end: target.selectionEnd },
+                    }
+                  : visual
+                    ? read(visual)
+                    : undefined
+
+              if (
+                state?.selection &&
+                state.selection.start !== state.selection.end &&
+                /^(?:https?:\/\/|mailto:|\/(?!\/)|\.\.?\/|#)/i.test(url)
+              ) {
+                const selected = state.selection
+
+                const tool = tools.find(
+                  (tool) =>
+                    tool.kind === 'Input' &&
+                    tool.paste === 'url' &&
+                    tool.plugin.apply(state.source, selected, url) !== undefined,
+                )
+
+                if (tool) {
+                  event.preventDefault()
+                  select()
+                  emit(
+                    Formatted.make({
+                      id: tool.plugin.id,
+                      source: state.source,
+                      selection: selected,
+                      input: url,
+                    }),
+                  )
+
+                  return
+                }
+              }
+
+              if (!visual) return
+              event.preventDefault()
               const selection = window.getSelection()
 
               const range =
                 selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : undefined
 
-              const visual = field()
-
               if (!range || !visual?.contains(range.commonAncestorContainer)) return
-              const text = document.createTextNode(event.clipboardData?.getData('text/plain') ?? '')
+              const text = document.createTextNode(clipboard)
               range.deleteContents()
               range.insertNode(text)
               range.setStartAfter(text)
@@ -441,6 +524,7 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             document.addEventListener('selectionchange', select)
 
             return () => {
+              cancelAnimationFrame(inputFrame)
               editor.removeEventListener('keydown', keydown)
 
               for (const [name, listener] of listeners) element.removeEventListener(name, listener)

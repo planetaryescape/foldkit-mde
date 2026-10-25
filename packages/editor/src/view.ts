@@ -25,6 +25,9 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             tool.shortcut ? `${tool.label} (Ctrl/⌘+${tool.shortcut.toUpperCase()})` : tool.label,
           ),
           h.Disabled(tool.plugin.apply(model.source, model.selection) === undefined),
+          ...(tool.active
+            ? [h.AriaPressed(String(tool.active(model.source, model.selection)))]
+            : []),
           ...(tool.group
             ? [
                 h.Popovertarget(`mde-group-${encodeURIComponent(tool.group)}`),
@@ -40,7 +43,17 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             }),
           ),
         ],
-        [tool.shortLabel ?? tool.label],
+        [
+          tool.shortLabel ?? tool.label,
+          ...(tool.group && tool.active
+            ? [
+                h.span(
+                  [h.Class('mde-menu-selection'), h.AriaHidden(true)],
+                  [tool.active(model.source, model.selection) ? '✓' : ''],
+                ),
+              ]
+            : []),
+        ],
       )
 
     return h.section(
@@ -52,19 +65,22 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             h.div(
               [h.Class('mde-modes'), h.AriaLabel('Editing mode')],
               [
-                ...['Visual', 'Markdown'].map((mode) =>
-                  h.button(
-                    [
-                      h.Type('button'),
-                      h.Class(model.mode === mode ? 'is-active' : ''),
-                      h.AriaPressed(String(model.mode === mode)),
-                      h.OnClick(
-                        CoreMessage.cases.ChangedMode.make({
-                          mode: mode === 'Visual' ? 'Visual' : 'Markdown',
-                        }),
-                      ),
-                    ],
-                    [mode],
+                h.div(
+                  [h.Class('mde-mode-switch')],
+                  ['Visual', 'Markdown'].map((mode) =>
+                    h.button(
+                      [
+                        h.Type('button'),
+                        h.Class(model.mode === mode ? 'is-active' : ''),
+                        h.AriaPressed(String(model.mode === mode)),
+                        h.OnClick(
+                          CoreMessage.cases.ChangedMode.make({
+                            mode: mode === 'Visual' ? 'Visual' : 'Markdown',
+                          }),
+                        ),
+                      ],
+                      [mode],
+                    ),
                   ),
                 ),
                 h.span(
@@ -74,44 +90,55 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
               ],
             ),
             h.div(
-              [h.Class('mde-actions')],
+              [h.Class('mde-block-actions'), h.AriaLabel('Block formatting')],
               [
-                ...tools.flatMap((tool, index) => {
-                  if (tool.kind === 'Input')
-                    return [
-                      h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
-                      h.button(
-                        [h.Type('button'), h.Popovertarget(`mde-input-${tool.plugin.id}`)],
-                        [tool.triggerLabel ?? tool.inputLabel],
-                      ),
-                    ]
+                ...new Set(
+                  tools.flatMap((tool) =>
+                    tool.kind === 'Button' && tool.group ? [tool.group] : [],
+                  ),
+                ),
+              ].map((group) => {
+                const id = `mde-group-${encodeURIComponent(group)}`
 
-                  if (!tool.group) return [formatButton(tool)]
-
-                  const group = tool.group
-
-                  if (
-                    tools
-                      .slice(0, index)
-                      .some((item) => item.kind === 'Button' && item.group === group)
-                  )
-                    return []
-
-                  const id = `mde-group-${encodeURIComponent(group)}`
-
-                  return [
+                return h.div(
+                  [h.Class('mde-tool-group')],
+                  [
                     h.button(
                       [h.Type('button'), h.Class('mde-group-trigger'), h.Popovertarget(id)],
                       [group, h.span([h.Class('mde-chevron'), h.AriaHidden(true)], [])],
                     ),
                     h.div(
                       [h.Id(id), h.Popover('auto'), h.Class('mde-format-menu'), h.AriaLabel(group)],
-                      tools.flatMap((item) =>
-                        item.kind === 'Button' && item.group === group ? [formatButton(item)] : [],
+                      tools.flatMap((tool) =>
+                        tool.kind === 'Button' && tool.group === group ? [formatButton(tool)] : [],
                       ),
                     ),
-                    h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
-                  ]
+                  ],
+                )
+              }),
+            ),
+            h.div(
+              [h.Class('mde-actions')],
+              [
+                ...tools.flatMap((tool) => {
+                  if (tool.kind === 'Input')
+                    return [
+                      h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
+                      h.button(
+                        [
+                          h.Type('button'),
+                          h.Title(
+                            tool.shortcut
+                              ? `${tool.label} (Ctrl/⌘+${tool.shortcut.toUpperCase()})`
+                              : tool.label,
+                          ),
+                          h.Popovertarget(`mde-input-${tool.plugin.id}`),
+                        ],
+                        [tool.triggerLabel ?? tool.inputLabel],
+                      ),
+                    ]
+
+                  return tool.group ? [] : [formatButton(tool)]
                 }),
                 h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
                 h.button(
@@ -123,7 +150,22 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                     h.Disabled(model.past.length === 0),
                     h.OnClick(CoreMessage.cases.Undo.make({})),
                   ],
-                  ['↶'],
+                  [
+                    h.svg(
+                      [
+                        h.ViewBox('0 0 24 24'),
+                        h.Width('18'),
+                        h.Height('18'),
+                        h.Fill('none'),
+                        h.Stroke('currentColor'),
+                        h.StrokeWidth('1.75'),
+                        h.StrokeLinecap('round'),
+                        h.StrokeLinejoin('round'),
+                        h.AriaHidden(true),
+                      ],
+                      [h.path([h.D('M9 14 4 9l5-5 M4 9h10a6 6 0 0 1 0 12')], [])],
+                    ),
+                  ],
                 ),
                 h.button(
                   [
@@ -134,7 +176,22 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                     h.Disabled(model.future.length === 0),
                     h.OnClick(CoreMessage.cases.Redo.make({})),
                   ],
-                  ['↷'],
+                  [
+                    h.svg(
+                      [
+                        h.ViewBox('0 0 24 24'),
+                        h.Width('18'),
+                        h.Height('18'),
+                        h.Fill('none'),
+                        h.Stroke('currentColor'),
+                        h.StrokeWidth('1.75'),
+                        h.StrokeLinecap('round'),
+                        h.StrokeLinejoin('round'),
+                        h.AriaHidden(true),
+                      ],
+                      [h.path([h.D('M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12')], [])],
+                    ),
+                  ],
                 ),
               ],
             ),

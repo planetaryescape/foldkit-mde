@@ -7,6 +7,12 @@ export interface Inline {
   readonly underline: boolean
   readonly strikethrough: boolean
   readonly href?: string
+  readonly link?: {
+    readonly start: number
+    readonly end: number
+    readonly labelStart: number
+    readonly labelEnd: number
+  }
 }
 
 export interface Block {
@@ -15,6 +21,15 @@ export interface Block {
   readonly source: string
   readonly editable: boolean
   readonly inlines: ReadonlyArray<Inline>
+  readonly quote?: { readonly prefix: string }
+  readonly list?: { readonly prefix: string } & (
+    | { readonly kind: 'bullet' }
+    | { readonly kind: 'ordered'; readonly ordinal: number }
+  )
+  readonly alignment?: {
+    readonly value: 'left' | 'center' | 'right' | 'justify'
+    readonly suffix: string
+  }
   readonly heading?: {
     readonly level: 1 | 2 | 3 | 4 | 5 | 6
     readonly prefix: string
@@ -27,7 +42,7 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
   let cursor = 0
 
   for (const match of source.matchAll(
-    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n*_`<>\\~]+)\]\(([^\s()<>\\]+)\)|~~([^~\r\n]+)~~/g,
+    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n`\\]+)\]\(([^\s()<>\\]+)\)|~~([^~\r\n]+)~~/g,
   )) {
     const href = match[5]
 
@@ -60,16 +75,18 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
     const start = offset + match.index + prefix
 
     if (href !== undefined) {
-      result.push({
-        text,
-        start,
-        end: start + text.length,
-        bold: false,
-        italic: false,
-        underline: false,
-        strikethrough: false,
-        href,
-      })
+      result.push(
+        ...parseInlines(text, start).map((inline) => ({
+          ...inline,
+          href,
+          link: {
+            start: offset + match.index,
+            end: offset + match.index + match[0].length,
+            labelStart: start,
+            labelEnd: start + text.length,
+          },
+        })),
+      )
     } else {
       // Only the declared marks recurse; other HTML and unsupported syntax remain raw text.
       result.push(
@@ -103,36 +120,68 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
 
 /** Parse one block's visible spans while retaining its exact Markdown spelling. */
 export const parseBlock = (source: string, start = 0): Block => {
-  const opening = /^( {0,3})(#{1,6})([ \t]|$)/.exec(source)
+  const aligned = /[ \t]\{align=(left|center|right|justify)\}$/.exec(source)
+
+  const value = (['left', 'center', 'right', 'justify'] as const).find(
+    (value) => value === aligned?.[1],
+  )
+
+  const alignment = value && aligned ? { value, suffix: aligned[0] } : undefined
+  const body = alignment ? source.slice(0, -alignment.suffix.length) : source
+  const quoteMarker = /^>(?: |$)/.exec(body)
+  const quote = quoteMarker && !/[\r\n]/.test(body) ? { prefix: quoteMarker[0] } : undefined
+  const marker = /^(?:([-+*]) |(\d{1,9})[.)] )/.exec(body)
+
+  const list =
+    marker && !/[\r\n]/.test(body)
+      ? marker[2] === undefined
+        ? { kind: 'bullet' as const, prefix: marker[0] }
+        : { kind: 'ordered' as const, prefix: marker[0], ordinal: Number(marker[2]) }
+      : undefined
+
+  const opening = list ? null : /^( {0,3})(#{1,6})([ \t]|$)/.exec(body)
   const level = ([undefined, 1, 2, 3, 4, 5, 6] as const)[opening?.[2]?.length ?? 0]
   const prefix = opening?.[0] ?? ''
-  const remainder = source.slice(prefix.length)
+  const remainder = body.slice(prefix.length)
   const suffix = /(?:^[#]+[ \t]*$|[ \t]#+[ \t]*$)/.exec(remainder)?.[0] ?? ''
 
   const heading =
-    level !== undefined && !/[\r\n]/.test(source) ? { level, prefix, suffix } : undefined
+    level !== undefined && !/[\r\n]/.test(body) ? { level, prefix, suffix } : undefined
 
-  const content = heading ? remainder.slice(0, remainder.length - suffix.length) : source
-  const inlines = parseInlines(content, start + (heading ? prefix.length : 0))
+  const content = heading
+    ? remainder.slice(0, remainder.length - suffix.length)
+    : body.slice(quote?.prefix.length ?? list?.prefix.length ?? 0)
 
-  const plain = inlines
-    .filter((inline) => inline.href === undefined)
-    .map((inline) => inline.text)
-    .join('')
+  const inlines = parseInlines(
+    content,
+    start + (heading?.prefix.length ?? quote?.prefix.length ?? list?.prefix.length ?? 0),
+  )
+
+  const plain = inlines.map((inline) => inline.text).join('')
 
   const editable =
     (heading !== undefined ||
-      !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/m.test(source)) &&
-    !inlines.some(
-      (inline) =>
-        inline.href !== undefined &&
-        (inline.bold || inline.italic || inline.underline || inline.strikethrough),
+      list !== undefined ||
+      quote !== undefined ||
+      !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/m.test(body)) &&
+    !(list && /^(?:#|>|[-+*] |\d+[.)] |---|===)/.test(content)) &&
+    !(
+      quote &&
+      /^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/.test(content)
     ) &&
     !/[*_`[\]<>\\|]/.test(plain)
 
-  const block = { start, end: start + source.length, source, editable, inlines }
+  let block: Block = { start, end: start + source.length, source, editable, inlines }
 
-  return heading ? { ...block, heading } : block
+  if (heading) block = { ...block, heading }
+
+  if (list) block = { ...block, list }
+
+  if (quote) block = { ...block, quote }
+
+  if (alignment) block = { ...block, alignment }
+
+  return block
 }
 
 export const parse = (source: string): ReadonlyArray<Block> => {
@@ -146,6 +195,19 @@ export const parse = (source: string): ReadonlyArray<Block> => {
   const append = () => {
     if (end <= start) return
     const text = source.slice(start, end).replace(/[\r\n]+$/, '')
+
+    if (/^>(?: |$)/.test(text)) {
+      const quoted = Array.from(text.matchAll(/[^\r\n]+/g), (line) =>
+        parseBlock(line[0], start + line.index),
+      )
+
+      if (quoted.every((block) => block.quote && block.editable)) {
+        blocks.push(...quoted)
+
+        return
+      }
+    }
+
     blocks.push(parseBlock(text, start))
   }
 
@@ -153,7 +215,13 @@ export const parse = (source: string): ReadonlyArray<Block> => {
     if (!line[0]) continue
     const text = line[0].replace(/[\r\n]+$/, '')
 
-    if (!fence && /^ {0,3}#{1,6}(?:[ \t]|$)/.test(text)) {
+    if (!fence && /^\s{0,3}>/.test(text) && end > start && !/^\s{0,3}>/.test(source.slice(start))) {
+      append()
+      start = line.index
+      end = start
+    }
+
+    if (!fence && /^(?: {0,3}#{1,6}(?:[ \t]|$)|[-+*] |\d{1,9}[.)] )/.test(text)) {
       append()
       blocks.push(parseBlock(text, line.index))
       start = line.index + line[0].length
@@ -172,7 +240,7 @@ export const parse = (source: string): ReadonlyArray<Block> => {
       append()
       blankLines += 1
 
-      if (blocks.length > 0 && blankLines > 1 && blankLines % 2 === 0) {
+      if (blankLines > 1 && blankLines % 2 === 0) {
         blocks.push({
           start: line.index,
           end: line.index,

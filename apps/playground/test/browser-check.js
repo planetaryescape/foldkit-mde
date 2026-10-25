@@ -277,6 +277,34 @@ async function checkEditor() {
     await until(() => source() === formatted.replace('https://example.test/mixed', '/replacement'))
     await action('Undo')
     await until(() => source() === formatted)
+    await mode(editingMode)
+    let activeLink
+
+    if (editingMode === 'Markdown') {
+      activeLink = document.querySelector('textarea')
+      activeLink.focus()
+      const caret = formatted.indexOf('ger') + 1
+      activeLink.setSelectionRange(caret, caret)
+    } else {
+      activeLink = document.querySelector('a strong')
+      select(activeLink, activeLink.firstChild, 1)
+    }
+
+    await key(activeLink, 'k', { metaKey: true })
+    await until(() => document.activeElement.getAttribute('aria-label') === 'Link destination')
+    assert(
+      document.activeElement.value === 'https://example.test/mixed',
+      'Command+K at a caret inside a link exposes its existing destination',
+    )
+    assert(
+      !document.activeElement.form.querySelector('button').disabled,
+      'Active links can be edited',
+    )
+    document.activeElement.value = '/caret-edit'
+    document.activeElement.form.requestSubmit()
+    await until(() => source() === formatted.replace('https://example.test/mixed', '/caret-edit'))
+    await action('Undo')
+    await until(() => source() === formatted)
     await action('Undo')
     await until(() => source() === fixture)
   }

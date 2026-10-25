@@ -33,7 +33,7 @@ const apply = (
 ): Transaction | undefined => {
   const { start, end } = selection
 
-  if (start < 0 || end > source.length || start >= end) return undefined
+  if (start < 0 || end > source.length || start > end) return undefined
 
   const block = parse(source).find(
     (block) => block.editable && block.start <= start && block.end >= end,
@@ -41,21 +41,23 @@ const apply = (
 
   if (!block) return undefined
 
-  const linked = block.inlines.filter((inline) => inline.start < end && inline.end > start)
+  const linked = block.inlines.filter((inline) =>
+    start === end
+      ? inline.start <= start && inline.end >= end
+      : inline.start < end && inline.end > start,
+  )
+
   const first = linked[0]
   const last = linked.at(-1)
 
   const existing =
     first?.link &&
-    first.start === start &&
-    last?.end === end &&
+    (start === end || (first.start === start && last?.end === end)) &&
     linked.every((inline) => inline.link?.start === first.link?.start)
       ? first
       : undefined
 
   const label = source.slice(start, end)
-
-  if (/[\r\n]/.test(label) || !label.trim()) return undefined
 
   if (
     existing === undefined &&
@@ -82,6 +84,8 @@ const apply = (
       selection: { start: start + shift, end: end + shift },
     }
   }
+
+  if (/[\r\n]/.test(label) || !label.trim()) return undefined
 
   if (!url) return undefined
   const from = start + label.length - label.trimStart().length

@@ -102,7 +102,7 @@ const editor = Editor.make({
       plugin: link,
       inputLabel: 'Link destination',
       readInput: linkInput,
-      hint: 'Select words, including formatted text, or a whole link label. Use https, http, mailto or a relative URL. Empty removes the link.',
+      hint: 'Select words to add a link, or place the caret inside a link to edit it. Use https, http, mailto or a relative URL. Empty removes the link.',
     },
   ],
 })

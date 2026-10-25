@@ -159,3 +159,13 @@ Block menus and inline/history controls wrap as separate complete groups; active
 Verification: precommit, build and browser/storage/persistence suites passed. Generated list/alignment/undo histories cover Unicode against an independent source model (150 runs, seed 714). An intentional wrong ordered marker failed on the first generated input; restoring it returned green. Browser checks cover both modes, all four alignments, list toggle/undo, Enter splits, first/tail empty exit, Backspace and six toolbar widths. Autosave/reload retains list semantics, starting ordinal and alignment. This is Chromium evidence, not OS IME, Safari, Firefox or physical-device verification. Review media stays outside Git.
 
 Delivery: verified locally and ready for the continuing feature-branch commit/push authorization. No new merge, release or deployment is included.
+
+### Edit the link under the caret
+
+The owner requested Command+K editing of an active link without selecting its entire label. A pure regression reproduced rejection of a collapsed selection even though the input reader found the current URL. The formatter now resolves a caret within a supported link to its existing source span, preserving label spelling, marks and caret when replacing the destination. Clearing it removes the link. Ordinary plain-text carets and partial non-empty link selections remain rejected. Source remains authoritative and edits use the existing core transaction/history path; no new plugin contract or runtime was introduced.
+
+Native Meta+K validation exposed a second restriction: the form disabled Apply for every collapsed selection. It now consults the existing plugin for those selections instead. Browser regressions assert both URL prefill and enabled Apply in Visual and Markdown modes, then edit and undo. The hint and README describe caret-based editing. This follows the reference's source-first diagnosis and pure-transformation pattern; no ownership or dependency violation was introduced.
+
+Verification: the pure regression failed before the fix and passed afterward; precommit, build and all three browser suites passed. Native Meta+K and Enter changed the URL while retaining the mixed bold/plain label and collapsed caret, confirmed by exact DOM/source assertions. The open-form capture and recording contact sheet were inspected. Chromium is the verified engine, not a claim of real macOS or OS IME coverage.
+
+Delivery: verified locally and ready for the continuing feature-branch commit/push authorization; no main merge or deployment.

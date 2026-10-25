@@ -5,6 +5,27 @@ import { Arbitrary, Effect, Schema } from 'effect'
 
 import { link, linkInput } from './link'
 
+test('a caret inside an existing link edits or removes its destination without changing the label', () => {
+  const source = 'Before [**longer** track](/old) after\n\n::music{id="keep"}'
+
+  for (const start of [11, 14, 20, 23]) {
+    const selection = { start, end: start }
+    expect(linkInput(source, selection)).toBe('/old')
+    const transaction = link.apply(source, selection, '/updated')
+    expect(transaction).toBeDefined()
+
+    if (!transaction) throw new Error('Expected active-link edit')
+    const edited = update(init(source), Message.cases.Applied.make({ transaction }))
+    expect(edited.source).toBe(source.replace('(/old)', '(/updated)'))
+    expect(edited.selection).toEqual(selection)
+    expect(update(edited, Message.cases.Undo.make({})).source).toBe(source)
+    expect(link.apply(source, selection, '')?.text).toBe('**longer** track')
+  }
+
+  expect(link.apply(source, { start: 5, end: 5 }, '/updated')).toBeUndefined()
+  expect(link.apply(source, { start: 27, end: 27 }, '/updated')).toBeUndefined()
+})
+
 test('links preserve selected formatting, including partial and mixed spans, through replacement, removal and undo', () => {
   for (const [source, start, end, label] of [
     ['A **longer** track.', 4, 10, 'longer'],

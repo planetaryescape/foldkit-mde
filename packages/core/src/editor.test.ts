@@ -86,9 +86,39 @@ test('ATX headings interrupt paragraphs, preserve source spans and map only visi
 
   for (const block of blocks) expect(source.slice(block.start, block.end)).toBe(block.source)
   expect(parse('```md\n# Protected\n```')[0]?.editable).toBe(false)
-  expect(parse('# *unsupported*')[0]?.editable).toBe(false)
+  expect(parse('# `unsupported`')[0]?.editable).toBe(false)
   expect(parse('    # Indented')[0]?.editable).toBe(false)
   expect(parse('####### Too many')[0]?.editable).toBe(false)
+})
+
+test('inline italic and attribute-free underline map visible text without enabling arbitrary HTML', () => {
+  const source = '## A <u>***longer***</u> track'
+  const block = parse(source)[0]
+
+  if (!block) throw new Error('Expected heading')
+  expect(block.editable).toBe(true)
+  expect(block.inlines[1]).toEqual({
+    text: 'longer',
+    start: 11,
+    end: 17,
+    bold: true,
+    italic: true,
+    underline: true,
+  })
+  expect(sourceOffset(block, 2)).toBe(11)
+  expect(sourceOffset(block, 8, 'backward')).toBe(17)
+  expect(visualOffset(block, 14)).toBe(5)
+  expect(parse('<u>words</u>')[0]?.editable).toBe(true)
+
+  for (const source of [
+    '<u onclick="bad()">words</u>',
+    '<script>bad()</script>',
+    '*unfinished',
+    '<u>unfinished',
+    '**<img src=x>**',
+    '**[label](/mix)**',
+  ])
+    expect(parse(source)[0]?.editable).toBe(false)
 })
 
 test('undo and redo restore selection across modes without recording a source no-op', () => {

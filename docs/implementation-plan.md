@@ -1,6 +1,6 @@
 # Implementation plan
 
-Status: S01 is committed and pushed; S02 merged in PR #1 on 2026-10-15. The owner authorized S03 through an open PR. Existing implementation is summarized in [the log](implementation-log.md) and [the overview](blueprint/00-overview.md).
+Status: S01 is committed and pushed; S02 and S03 merged in PRs #1 and #3. S04 is a local UI improvement pass requested by the owner. Existing implementation is summarized in [the log](implementation-log.md) and [the overview](blueprint/00-overview.md).
 
 ## S01: Make documentation navigable and maintainable
 
@@ -28,10 +28,20 @@ Local saving policy also remains consumer-specific: review timing, loss toleranc
 
 ## S03: Editable ATX headings
 
-Status: implemented and verified locally on `feat/editable-headings`; ready for the owner-authorized commit, push and open PR. Delivery stops at an open PR, not merge. See [verification evidence](implementation-log.md#2026-10-15-editable-atx-headings).
+Status: merged in [PR #3](https://github.com/planetaryescape/foldkit-mde/pull/3) after the owner's subsequent request to ship to origin/HEAD. See [verification evidence](implementation-log.md#2026-10-15-editable-atx-headings).
 
 Outcome: render and edit ATX headings at levels 1–6 within the single Visual host. Host-selected pure Button plugins convert a single editable line between paragraph and heading through existing transactions, history and autosave. Heading JSON output is version 2.
 
 Acceptance: hide ATX markers while preserving untouched source spelling; retain selection through conversions and mode switches; support heading typing, Enter splits, empty-heading exit and native joins; reload an autosaved heading as a semantic heading. Preserve unsupported Markdown and surrounding bytes. Verify generated conversion histories against an independent model and mutation-check the property. Run precommit, build and browser/storage/persistence checks; inspect desktop and narrow layouts and a real keyboard/pointer interaction recording.
 
 Non-goals: lists, Setext headings, full CommonMark/GFM, dynamic registration, custom components, real OS IME proof and gbfm integration.
+
+## S04: A quieter editor UI
+
+Status: implemented locally on `feat/editor-ui-polish`; not committed or pushed.
+
+Outcome: a compact page header and persistent toolbar give the document more space. Host-selected paragraph/heading tools share a Text style dropdown; Link opens its input only when needed. Native popovers own keyboard/light-dismiss behavior. Owner feedback expanded the slice to include asterisk italic, attribute-free underline, a drawn chevron and protected-card keyboard controls. These use existing source transactions/history and saving policy; JSON version 3 records the new marks.
+
+Acceptance: heading, link and inline formatting retain selection and shared history; Escape and outside clicks close popovers without editing. Cards support keyboard focus, source editing, adjacent navigation and undoable whole-block deletion. Controls, popovers and source view fit desktop, tablet and narrow layouts. Preserve local-save/recovery behavior, including reload of the new marks. Check the rendered states, real pointer/keyboard flow, mutation-checked generated mark histories, precommit, build and all browser suites.
+
+Non-goals: floating selection toolbar, simultaneous split view, full CommonMark nesting, extra UI dependencies and broader browser-support claims. CSS anchor positioning is verified in Chromium only.

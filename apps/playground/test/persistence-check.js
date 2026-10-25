@@ -30,9 +30,12 @@ async function checkPersistence() {
     await until(() => source(doc) === text)
   }
 
-  const fixture = '### Exact **Markdown**\n\n::music{id="preserve"}\n'
+  const fixture = '### Exact **Markdown** and *italic* <u>underline</u>\n\n::music{id="preserve"}\n'
   await until(() => button(document, 'Markdown'))
-  await setSource(document, 'Exact **Markdown**\n\n::music{id="preserve"}\n')
+  await setSource(
+    document,
+    'Exact **Markdown** and *italic* <u>underline</u>\n\n::music{id="preserve"}\n',
+  )
   await until(() => !button(document, 'Heading 3').disabled)
   button(document, 'Heading 3').click()
   await until(() => source(document) === fixture && saved(document))
@@ -48,8 +51,14 @@ async function checkPersistence() {
     await until(() => source(frame.contentDocument) === fixture && saved(frame.contentDocument))
     assert(button(frame.contentDocument, 'Undo').disabled, 'Restart resets history')
     assert(
-      frame.contentDocument.querySelector('.mde-visual > h3')?.textContent === 'Exact Markdown',
+      frame.contentDocument.querySelector('.mde-visual > h3')?.textContent ===
+        'Exact Markdown and italic underline',
       'Autosaved heading conversion reloads as an editable semantic heading',
+    )
+    assert(
+      frame.contentDocument.querySelector('h3 em')?.textContent === 'italic' &&
+        frame.contentDocument.querySelector('h3 u')?.textContent === 'underline',
+      'Autosave and reload retain italic and underline semantics',
     )
     assert(
       frame.contentDocument.querySelector('#mde-surface').dataset.mode === 'Visual',

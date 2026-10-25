@@ -53,11 +53,20 @@ export const inputView = (tool: Extract<FormattingTool, { kind: 'Input' }>) => {
     h.form(
       [
         h.Key(JSON.stringify({ id: tool.plugin.id, source, selection })),
+        h.Id(`mde-input-${tool.plugin.id}`),
+        h.Popover('auto'),
+        h.AriaLabel(`${tool.inputLabel} editor`),
         h.Class('mde-format-input'),
         h.OnMount(Observe({ source, selection })),
       ],
       [
-        h.label([], [tool.inputLabel, h.input([h.Type('text'), h.AriaLabel(tool.inputLabel)])]),
+        h.label(
+          [],
+          [
+            tool.inputLabel,
+            h.input([h.Type('text'), h.AriaLabel(tool.inputLabel), h.Autofocus(true)]),
+          ],
+        ),
         h.button([h.Type('submit'), h.Disabled(selection.start === selection.end)], [tool.label]),
         h.span([h.Class('mde-format-hint')], [tool.hint]),
       ],

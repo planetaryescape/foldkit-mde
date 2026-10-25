@@ -37,7 +37,7 @@ apps/
 packages/
   core/             Effect Schema Model/Messages and pure Match reducer
   editor/           Foldkit view and editor stylesheet
-  plugins/          Pure bold/link/heading formatting and Markdown/JSON representations
+  plugins/          Pure inline/link/heading formatting and Markdown/JSON representations
   persistence/      Effect DocumentStore, native IndexedDB, memory Layer, autosave reducer
   anti-slop/        Vendored development-only Oxlint plugins and tests
 docs/
@@ -59,7 +59,7 @@ There is one root `bun.lock`. The root catalog pins runtime versions for all wor
 - `@foldkit-mde/editor`: `make(formatting)` returns a matching Foldkit view and update; Message, Formatted, Model and Synchronize are exported.
 - `@foldkit-mde/editor/style.css`: editor styles.
 - `@foldkit-mde/core/plugins`: formatting and representation contracts.
-- `@foldkit-mde/plugins/bold` and `/link`: pure formatting implementations. Link accepts a destination; `linkInput` reads a selected link label's destination.
+- `@foldkit-mde/plugins/bold`, `/italic`, `/underline` and `/link`: pure formatting implementations. Link accepts a destination; `linkInput` reads a selected link label's destination.
 - `@foldkit-mde/plugins/heading`: `heading(0 | 1 | 2 | 3 | 4 | 5 | 6)` returns a pure Button plugin. Zero means paragraph; other levels mean ATX headings.
 - `@foldkit-mde/plugins/json`: versioned JSON Schema and a pure document projection.
 - `@foldkit-mde/plugins/markdown`: exact Markdown representation.
@@ -98,17 +98,19 @@ Anti-slop lives in `packages/anti-slop`, not a top-level tools directory. Its im
 4. Keep a core with testable plugin behavior. Bold/italic, custom components, and Markdown-to-HTML are plugin capabilities rather than hardcoded host features.
 5. Package primary local saving and recovery with the editor. The host configures identity, policy, storage Layer, and runtime. Backend saving, publishing, and application-specific integrations remain in the host.
 
-The playground implements editable paragraphs, ATX headings (`#` through `######`), `**bold**` and plain-label links, raw Markdown, paragraph breaks, and shared undo/redo. The host selects formatting plugins and their controls. Select plain words to apply bold, or the full contents of a bold span to remove it. Select plain words and enter a link destination to insert a link; select the whole link label to change its destination, or clear the field to remove it. Both modes use the same plugins and history.
+The playground implements editable paragraphs, ATX headings (`#` through `######`), `**bold**`, `*italic*`, `<u>underline</u>` and plain-label links, raw Markdown, paragraph breaks, and shared undo/redo. Underline is an explicit attribute-free extension, not native Markdown or arbitrary HTML support. The host selects formatting plugins and their controls. Select plain words or a complete marked span to toggle bold, italic and underline independently; combined marks are supported on the same span. Partial existing-mark and mixed-span selections are refused. The toolbar uses B/I/U with accessible names and shortcut hints; Ctrl/Command+B, I and U work in both modes. Underscore emphasis and full CommonMark nesting remain unsupported. Select plain words and enter a link destination to insert a link; select the whole link label to change its destination, or clear the field to remove it. Both modes use the same plugins and history.
 
 Place the caret or a selection within one editable line to choose **Paragraph** or **Heading 1–6**. A host adds these controls with `{ kind: 'Button', label: 'Heading 2', plugin: heading(2) }`. Conversion uses the shared history and autosave path, replaces that block's marker spelling, and preserves inline content and surrounding source. Multiline paragraphs, cross-block selections, unsupported syntax, and conversions that would change visible text are refused. Untouched headings retain indentation, tabs, optional closing hashes, and original separators. Enter splits a heading into a heading and paragraph; Enter in an empty heading exits to a paragraph. Setext headings and lists remain protected source.
 
+The playground collects paragraph/heading choices under **Text style**. Button tools with the same optional `group` label share a native popover; ungrouped buttons stay in the toolbar. An optional `shortLabel` changes visible button text while `label` remains its accessible name. Input tools open on demand, with an optional `triggerLabel` (the playground uses **Link**). Escape or clicking outside dismisses a popover without editing; applying a valid format restores the document selection. These are editor-owned presentation options, not new plugin contracts. Popover placement uses browser CSS anchor positioning; current visual/interaction verification covers Chromium, not other engines.
+
 Links accept HTTP, HTTPS, mailto and relative destinations. Unsafe schemes, protocol-relative URLs, whitespace, parentheses, titles, nested marks and partial link-label formatting are outside this slice. Unsupported source stays protected. Clicking an editable link does not navigate away. URL input is a temporary DOM draft scoped to source and selection, not another document store; changing either resets it. Formatting requests carry their source and selection and are ignored if stale.
 
-Unsupported blocks, including gbfm music directives, appear as protected source cards. **Edit source** opens raw Markdown at that block. Mode switches do not rewrite the document. The visual adapter renders text nodes and `strong` elements, never source HTML, and pastes plain text only.
+Unsupported blocks, including gbfm music directives, appear as protected source cards. Tab focuses the card; Enter or F2 opens Markdown with its source selected. Up/Down reaches a neighboring card from any column on the adjacent rendered line; Left/Right reaches it at the text boundary. Delete or Backspace removes a focused card through shared history, and undo restores its source and keyboard focus. The **Edit source** button also remains available. Mode switches do not rewrite the document. The visual adapter constructs text and declared formatting elements, never injects source HTML, and pastes plain text only.
 
 Visual mode is now one continuous editing host. Paragraphs are structural children, not separate textboxes. Native cursor movement, cross-paragraph selection/replacement, and Backspace/Delete joins work through that host and share core history. Unsupported source cards are non-editable nodes; structural selection can remove a whole card, while editing its contents requires raw mode.
 
-Open **JSON representation** below the editor to inspect the built-in plugin output. Version 2 adds `Heading` nodes with a level from 1 to 6 alongside paragraph nodes, bold marks, optional link destinations, source spans, and opaque raw nodes. Exact Markdown source remains included. The version-1 output contract is replaced; consumers must accept version 2 and handle Heading nodes. JSON is a read-only projection, not another authoritative document. JSON import/editing is not implemented; it must validate its format and produce core transactions when added.
+Open **JSON representation** below the editor to inspect the built-in plugin output. Version 3 adds explicit `italic` and `underline` booleans alongside `bold`, `Heading` nodes with a level from 1 to 6, paragraph nodes, optional link destinations, source spans, and opaque raw nodes. Exact Markdown source remains included. Consumers must accept version 3; earlier output contracts are replaced. JSON is a read-only projection, not another authoritative document. JSON import/editing is not implemented; it must validate its format and produce core transactions when added.
 
 This is not a full CommonMark/GFM editor. Full formatting semantics, history coalescing, multiple editor instances, durable undo, and dynamic plugin registration remain future work. Undo currently records each input event or transaction, rather than grouping a typing session.
 

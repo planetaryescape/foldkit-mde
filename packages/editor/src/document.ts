@@ -17,6 +17,11 @@ const serialize = (node: Node): string => {
   if (node instanceof HTMLElement && (node.tagName === 'STRONG' || node.tagName === 'B'))
     return text ? `**${text}**` : ''
 
+  if (node instanceof HTMLElement && (node.tagName === 'EM' || node.tagName === 'I'))
+    return text ? `*${text}*` : ''
+
+  if (node instanceof HTMLElement && node.tagName === 'U') return text ? `<u>${text}</u>` : ''
+
   if (node instanceof HTMLAnchorElement)
     return text ? `[${text}](${node.getAttribute('href') ?? ''})` : ''
 
@@ -249,29 +254,48 @@ export const renderVisual = (
       node.className = 'mde-paragraph'
 
       for (const inline of block.inlines) {
-        if (inline.bold) {
-          const strong = document.createElement('strong')
-          strong.textContent = inline.text
-          node.append(strong)
-        } else if (inline.href !== undefined) {
+        let content: Node = document.createTextNode(inline.text)
+
+        for (const [enabled, tag] of [
+          [inline.italic, 'em'],
+          [inline.bold, 'strong'],
+          [inline.underline, 'u'],
+        ] as const) {
+          if (!enabled) continue
+          const wrapper = document.createElement(tag)
+          wrapper.append(content)
+          content = wrapper
+        }
+
+        if (inline.href !== undefined) {
           const anchor = document.createElement('a')
           anchor.setAttribute('href', inline.href)
-          anchor.textContent = inline.text
-          node.append(anchor)
-        } else node.append(document.createTextNode(inline.text))
+          anchor.append(content)
+          content = anchor
+        }
+
+        node.append(content)
       }
 
       if (block.inlines.every((inline) => !inline.text)) node.append(document.createElement('br'))
     } else {
       node.className = 'mde-protected'
       node.contentEditable = 'false'
+      node.tabIndex = 0
+      node.setAttribute('role', 'group')
+      node.setAttribute('aria-label', 'Protected source block')
+      node.setAttribute('aria-describedby', `mde-block-help-${block.start}`)
       const code = document.createElement('pre')
       code.textContent = block.source
       const button = document.createElement('button')
       button.type = 'button'
       button.textContent = 'Edit source'
       button.dataset['sourceStart'] = String(block.start)
-      node.append(code, button)
+      const help = document.createElement('span')
+      help.id = `mde-block-help-${block.start}`
+      help.className = 'mde-block-help'
+      help.textContent = 'Enter to edit · ↑ ↓ to move · Delete to remove'
+      node.append(code, button, help)
     }
 
     node.dataset['baseline'] = block.editable
@@ -286,6 +310,20 @@ export const renderVisual = (
   root.append(field)
 
   if (!focus) return
+
+  const selectedBlock = entries.find(
+    (entry) =>
+      !entry.block.editable &&
+      entry.block.start === selection.start &&
+      entry.block.end === selection.end,
+  )
+
+  if (selectedBlock?.node instanceof HTMLElement) {
+    selectedBlock.node.focus()
+
+    return
+  }
+
   field.focus()
 
   const point = (offset: number): readonly [Node, number] => {

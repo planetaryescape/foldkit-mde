@@ -8,6 +8,8 @@ const Children = Schema.Array(
   Schema.Struct({
     text: Schema.String,
     bold: Schema.Boolean,
+    italic: Schema.Boolean,
+    underline: Schema.Boolean,
     href: Schema.optionalKey(Schema.String),
   }),
 )
@@ -26,7 +28,7 @@ const Node = Schema.TaggedUnion({
 })
 
 export const JsonDocument = Schema.Struct({
-  version: Schema.Literal(2),
+  version: Schema.Literal(3),
   source: Schema.String,
   nodes: Schema.Array(Node),
 })
@@ -36,7 +38,7 @@ export type JsonDocument = typeof JsonDocument.Type
 export const json: Representation<JsonDocument> = {
   id: 'json',
   project: (source) => ({
-    version: 2,
+    version: 3,
     source,
     nodes: parse(source).map((block) => {
       const span = { start: block.start, end: block.end }
@@ -44,7 +46,12 @@ export const json: Representation<JsonDocument> = {
       if (!block.editable) return Node.cases.Raw.make({ span, source: block.source })
 
       const children = block.inlines.map((inline) => {
-        const child = { text: inline.text, bold: inline.bold }
+        const child = {
+          text: inline.text,
+          bold: inline.bold,
+          italic: inline.italic,
+          underline: inline.underline,
+        }
 
         return inline.href === undefined ? child : { ...child, href: inline.href }
       })

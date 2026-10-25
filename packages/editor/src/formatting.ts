@@ -7,6 +7,8 @@ export type FormattingTool =
       readonly kind: 'Button'
       readonly label: string
       readonly plugin: FormattingPlugin
+      readonly group?: string
+      readonly shortLabel?: string
       readonly shortcut?: string
       readonly inputType?: string
     }
@@ -15,6 +17,7 @@ export type FormattingTool =
       readonly label: string
       readonly plugin: FormattingPlugin<string>
       readonly inputLabel: string
+      readonly triggerLabel?: string
       readonly hint: string
       readonly readInput: (source: string, selection: Core.Selection) => string
     }

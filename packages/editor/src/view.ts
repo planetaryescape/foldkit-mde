@@ -15,8 +15,35 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
   const Observe = observe(tools)
   const inputs = tools.flatMap((tool) => (tool.kind === 'Input' ? [inputView(tool)] : []))
 
-  const view = (model: Model, h: HtmlBuilder<Message>): Html =>
-    h.section(
+  const view = (model: Model, h: HtmlBuilder<Message>): Html => {
+    const formatButton = (tool: Extract<FormattingTool, { kind: 'Button' }>) =>
+      h.button(
+        [
+          h.Type('button'),
+          h.AriaLabel(tool.label),
+          h.Title(
+            tool.shortcut ? `${tool.label} (Ctrl/⌘+${tool.shortcut.toUpperCase()})` : tool.label,
+          ),
+          h.Disabled(tool.plugin.apply(model.source, model.selection) === undefined),
+          ...(tool.group
+            ? [
+                h.Popovertarget(`mde-group-${encodeURIComponent(tool.group)}`),
+                h.Popovertargetaction('hide'),
+              ]
+            : []),
+          h.OnClick(
+            Formatted.make({
+              id: tool.plugin.id,
+              input: '',
+              source: model.source,
+              selection: model.selection,
+            }),
+          ),
+        ],
+        [tool.shortLabel ?? tool.label],
+      )
+
+    return h.section(
       [h.Class('mde'), h.AriaLabel('Markdown editor')],
       [
         h.div(
@@ -29,6 +56,7 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                   [
                     h.Type('button'),
                     h.Class(model.mode === mode ? 'is-active' : ''),
+                    h.AriaPressed(String(model.mode === mode)),
                     h.OnClick(
                       CoreMessage.cases.ChangedMode.make({
                         mode: mode === 'Visual' ? 'Visual' : 'Markdown',
@@ -42,30 +70,41 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             h.div(
               [h.Class('mde-actions')],
               [
-                ...tools.flatMap((tool) =>
-                  tool.kind === 'Button'
-                    ? [
-                        h.button(
-                          [
-                            h.Type('button'),
-                            h.AriaLabel(tool.label),
-                            h.Disabled(
-                              tool.plugin.apply(model.source, model.selection) === undefined,
-                            ),
-                            h.OnClick(
-                              Formatted.make({
-                                id: tool.plugin.id,
-                                input: '',
-                                source: model.source,
-                                selection: model.selection,
-                              }),
-                            ),
-                          ],
-                          [tool.label],
-                        ),
-                      ]
-                    : [],
-                ),
+                ...tools.flatMap((tool, index) => {
+                  if (tool.kind === 'Input')
+                    return [
+                      h.button(
+                        [h.Type('button'), h.Popovertarget(`mde-input-${tool.plugin.id}`)],
+                        [tool.triggerLabel ?? tool.inputLabel],
+                      ),
+                    ]
+
+                  if (!tool.group) return [formatButton(tool)]
+
+                  const group = tool.group
+
+                  if (
+                    tools
+                      .slice(0, index)
+                      .some((item) => item.kind === 'Button' && item.group === group)
+                  )
+                    return []
+
+                  const id = `mde-group-${encodeURIComponent(group)}`
+
+                  return [
+                    h.button(
+                      [h.Type('button'), h.Class('mde-group-trigger'), h.Popovertarget(id)],
+                      [group, h.span([h.Class('mde-chevron'), h.AriaHidden(true)], [])],
+                    ),
+                    h.div(
+                      [h.Id(id), h.Popover('auto'), h.Class('mde-format-menu'), h.AriaLabel(group)],
+                      tools.flatMap((item) =>
+                        item.kind === 'Button' && item.group === group ? [formatButton(item)] : [],
+                      ),
+                    ),
+                  ]
+                }),
                 h.button(
                   [
                     h.Type('button'),
@@ -90,14 +129,6 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
         h.div(
           [h.Class('mde-canvas')],
           [
-            h.span(
-              [h.Class('mde-label')],
-              [
-                model.mode === 'Visual'
-                  ? 'Write here. Select words to use the formatting tools.'
-                  : 'The source. Nothing hidden.',
-              ],
-            ),
             h.div(
               [
                 h.Id('mde-surface'),
@@ -112,19 +143,13 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
         h.div(
           [h.Class('mde-status')],
           [
-            h.span(
-              [],
-              [
-                model.mode === 'Visual'
-                  ? 'Paragraphs, headings, bold + links. Other blocks: edit their source.'
-                  : 'Markdown edits share the same undo history.',
-              ],
-            ),
+            h.span([], [model.mode === 'Visual' ? 'Visual editing' : 'Markdown source']),
             h.span([], [`${model.source.length.toLocaleString()} characters`]),
           ],
         ),
       ],
     )
+  }
 
   return { view, update: (model: Model, message: Message) => update(tools, model, message) }
 }

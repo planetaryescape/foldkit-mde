@@ -3,6 +3,8 @@ export interface Inline {
   readonly start: number
   readonly end: number
   readonly bold: boolean
+  readonly italic: boolean
+  readonly underline: boolean
   readonly href?: string
 }
 
@@ -24,9 +26,9 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
   let cursor = 0
 
   for (const match of source.matchAll(
-    /\*\*([^*\r\n]+)\*\*|\[([^\][\r\n*_`<>\\]+)\]\(([^\s()<>\\]+)\)/g,
+    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n*_`<>\\]+)\]\(([^\s()<>\\]+)\)/g,
   )) {
-    const href = match[3]
+    const href = match[5]
 
     if (
       href !== undefined &&
@@ -45,20 +47,38 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
         start: offset + cursor,
         end: offset + match.index,
         bold: false,
+        italic: false,
+        underline: false,
       })
     }
 
-    const text = match[1] ?? match[2] ?? ''
-    const prefix = match[1] === undefined ? 1 : 2
+    const text = match[1] ?? match[3] ?? match[4] ?? ''
+    const stars = match[2]?.length ?? 0
+    const prefix = match[1] !== undefined ? 3 : stars || 1
+    const start = offset + match.index + prefix
 
-    const inline: Inline = {
-      text,
-      start: offset + match.index + prefix,
-      end: offset + match.index + prefix + text.length,
-      bold: match[1] !== undefined,
+    if (href !== undefined) {
+      result.push({
+        text,
+        start,
+        end: start + text.length,
+        bold: false,
+        italic: false,
+        underline: false,
+        href,
+      })
+    } else {
+      // Only the declared marks recurse; other HTML and unsupported syntax remain raw text.
+      result.push(
+        ...parseInlines(text, start).map((inline) => ({
+          ...inline,
+          bold: inline.bold || stars >= 2,
+          italic: inline.italic || stars === 1 || stars === 3,
+          underline: inline.underline || match[1] !== undefined,
+        })),
+      )
     }
 
-    result.push(href === undefined ? inline : { ...inline, href })
     cursor = match.index + match[0].length
   }
 
@@ -68,6 +88,8 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
       start: offset + cursor,
       end: offset + source.length,
       bold: false,
+      italic: false,
+      underline: false,
     })
   }
 
@@ -89,13 +111,16 @@ export const parseBlock = (source: string, start = 0): Block => {
   const inlines = parseInlines(content, start + (heading ? prefix.length : 0))
 
   const plain = inlines
-    .filter((inline) => !inline.bold && inline.href === undefined)
+    .filter((inline) => inline.href === undefined)
     .map((inline) => inline.text)
     .join('')
 
   const editable =
     (heading !== undefined ||
-      !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<|---|===))/m.test(source)) &&
+      !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/m.test(source)) &&
+    !inlines.some(
+      (inline) => inline.href !== undefined && (inline.bold || inline.italic || inline.underline),
+    ) &&
     !/[*_`[\]<>\\|]/.test(plain)
 
   const block = { start, end: start + source.length, source, editable, inlines }

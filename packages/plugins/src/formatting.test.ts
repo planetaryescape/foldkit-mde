@@ -3,8 +3,8 @@ import { expect, test } from 'bun:test'
 import { init, Message, update } from '@foldkit-mde/core'
 import { Arbitrary, Effect, Schema } from 'effect'
 
-import { bold } from './bold'
 import { heading } from './heading'
+import { bold, italic, underline } from './marks'
 
 test('bold transactions preserve surrounding source, selection whitespace and shared undo', () => {
   const source = 'Before\r\n\r\nslow build\r\n\r\n::music{id="keep"}\r\n'
@@ -73,7 +73,7 @@ test('heading conversion preserves inline source, surrounding bytes and selectio
   for (const protectedSource of [
     '```\nwords\n```',
     '- words',
-    '# *words*',
+    '# `words`',
     'one\ntwo',
     '::music{id="x"}',
   ])
@@ -82,6 +82,129 @@ test('heading conversion preserves inline source, surrounding bytes and selectio
   expect(heading(1).apply('One\n\nTwo', { start: 1, end: 7 })).toBeUndefined()
   expect(heading(1).apply('Words ###', { start: 1, end: 1 })).toBeUndefined()
   expect(heading(0).apply('## # Inner', { start: 5, end: 5 })).toBeUndefined()
+})
+
+test('inline marks compose, toggle independently and restore source and selection through shared undo', () => {
+  const original = 'Before\r\n\r\nA longer track.\r\n\r\n::music{id="keep"}\r\n'
+
+  let model = update(
+    init(original),
+    Message.cases.Selected.make({ selection: { start: 12, end: 18 } }),
+  )
+
+  const history = [model]
+
+  for (const [plugin, expected] of [
+    [italic, '*longer*'],
+    [bold, '***longer***'],
+    [underline, '<u>***longer***</u>'],
+    [italic, '<u>**longer**</u>'],
+    [bold, '<u>longer</u>'],
+    [underline, 'longer'],
+  ] as const) {
+    const transaction = plugin.apply(model.source, model.selection)
+
+    if (!transaction) throw new Error(`Expected ${plugin.id} transaction`)
+    model = update(model, Message.cases.Applied.make({ transaction }))
+    expect(model.source).toBe(`Before\r\n\r\nA ${expected} track.\r\n\r\n::music{id="keep"}\r\n`)
+    expect(model.source.slice(model.selection.start, model.selection.end)).toBe('longer')
+    history.push(model)
+  }
+
+  history.pop()
+  model = update(model, Message.cases.ChangedMode.make({ mode: 'Markdown' }))
+
+  for (const previous of history.reverse()) {
+    model = update(model, Message.cases.Undo.make({}))
+    expect(model.source).toBe(previous.source)
+    expect(model.selection).toEqual(previous.selection)
+  }
+
+  for (const plugin of [italic, underline]) {
+    expect(plugin.apply('A **longer** track.', { start: 6, end: 9 })).toBeUndefined()
+    expect(plugin.apply('[longer](/mix)', { start: 1, end: 7 })).toBeUndefined()
+    expect(plugin.apply('::music{id="keep"}', { start: 2, end: 7 })).toBeUndefined()
+    expect(plugin.apply('one\ntwo', { start: 0, end: 7 })).toBeUndefined()
+    expect(plugin.apply('   ', { start: 0, end: 3 })).toBeUndefined()
+    expect(plugin.apply('**<u>longer</u> track**', { start: 5, end: 11 })).toBeUndefined()
+  }
+})
+
+test('generated mark histories match independent spellings, source boundaries and undo selections', async () => {
+  // oxlint-disable-next-line effecttsgo/unstable-api-usage -- Schema-derived histories use the pinned Effect runner.
+  const cases = Arbitrary.schema(
+    Schema.Struct({
+      parts: Schema.Array(Schema.Literals(['a', '界', '🎵', ' '])),
+      operations: Schema.Array(Schema.Literals(['bold', 'italic', 'underline'])),
+    }),
+  )
+
+  const result = await Effect.runPromise(
+    // oxlint-disable-next-line effecttsgo/unstable-api-usage -- Generate and shrink real public formatting histories.
+    Arbitrary.checkEffect(
+      cases,
+      ({ parts, operations }) => {
+        const label = `Start ${parts.join('')} end`
+        const before = 'Before\r\n\r\nA '
+        const after = ' track.\r\n\r\n::music{id="keep"}\r\n'
+
+        const spellings = [
+          'word',
+          '**word**',
+          '*word*',
+          '***word***',
+          '<u>word</u>',
+          '<u>**word**</u>',
+          '<u>*word*</u>',
+          '<u>***word***</u>',
+        ]
+
+        const plugins = { bold, italic, underline }
+        const bits = { bold: 1, italic: 2, underline: 4 }
+        let state = 0
+
+        let model = update(
+          init(before + label + after),
+          Message.cases.Selected.make({
+            selection: { start: before.length, end: before.length + label.length },
+          }),
+        )
+
+        const history = []
+
+        for (const operation of operations) {
+          const transaction = plugins[operation].apply(model.source, model.selection)
+
+          if (!transaction) return false
+          history.push(model)
+          state ^= bits[operation]
+          model = update(model, Message.cases.Applied.make({ transaction }))
+
+          if (
+            model.source !== before + spellings[state]?.replace('word', label) + after ||
+            model.source.slice(model.selection.start, model.selection.end) !== label
+          )
+            return false
+        }
+
+        for (const previous of history.reverse()) {
+          model = update(model, Message.cases.Undo.make({}))
+
+          if (
+            model.source !== previous.source ||
+            model.selection.start !== previous.selection.start ||
+            model.selection.end !== previous.selection.end
+          )
+            return false
+        }
+
+        return true
+      },
+      { seed: 2391, runs: 150, size: 30 },
+    ),
+  )
+
+  expect(result._tag, JSON.stringify(result)).toBe('Passed')
 })
 
 test('generated heading conversions preserve Unicode selections and match independent undo histories', async () => {

@@ -28,7 +28,9 @@ const apply = (
     existing === undefined &&
     block.inlines.some(
       (inline) =>
-        (inline.bold || inline.href !== undefined) && start < inline.end && end > inline.start,
+        (inline.bold || inline.italic || inline.underline || inline.href !== undefined) &&
+        start < inline.end &&
+        end > inline.start,
     )
   )
     return undefined

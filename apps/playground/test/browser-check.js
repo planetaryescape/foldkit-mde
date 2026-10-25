@@ -15,7 +15,9 @@ async function checkEditor() {
   const source = () => document.getElementById('mde-surface').dataset.source
 
   const button = (name) =>
-    Array.from(document.querySelectorAll('button')).find((element) => element.textContent === name)
+    Array.from(document.querySelectorAll('button')).find(
+      (element) => (element.getAttribute('aria-label') ?? element.textContent) === name,
+    )
 
   const mode = async (name) => {
     button(name).click()
@@ -24,7 +26,25 @@ async function checkEditor() {
 
   const action = async (name) => {
     await until(() => !button(name).disabled)
+    const popover = button(name).closest('[popover]')
+
+    if (popover && !popover.matches(':popover-open')) {
+      document
+        .querySelector(`button[popovertarget="${popover.id}"]:not([popovertargetaction])`)
+        .click()
+      await until(() => popover.matches(':popover-open'))
+    }
+
     button(name).click()
+  }
+
+  const openLink = async () => {
+    button('Link').click()
+    await until(() => document.querySelector('.mde-format-input').matches(':popover-open'))
+    assert(
+      document.activeElement.getAttribute('aria-label') === 'Link destination',
+      'Opening the link editor focuses its destination input',
+    )
   }
 
   const setSource = async (text) => {
@@ -48,9 +68,211 @@ async function checkEditor() {
     document.dispatchEvent(new Event('selectionchange'))
   }
 
+  const key = async (target, value, modifiers = {}) => {
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true, ...modifiers }),
+    )
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+  }
+
+  for (const [name, marker, tag, shortcut, inputType] of [
+    ['Italic', '*longer*', 'em', 'i', 'formatItalic'],
+    ['Underline', '<u>longer</u>', 'u', 'u', 'formatUnderline'],
+  ]) {
+    for (const editingMode of ['Visual', 'Markdown']) {
+      const fixture = '## A longer track\n\n::music{id="keep"}\n'
+      const formatted = `## A ${marker} track\n\n::music{id="keep"}\n`
+      await setSource(fixture)
+
+      if (editingMode === 'Markdown') {
+        await mode('Markdown')
+        const input = document.querySelector('textarea')
+        input.focus()
+        input.setSelectionRange(5, 11)
+        document.dispatchEvent(new Event('selectionchange'))
+      } else {
+        const heading = document.querySelector('h2.mde-paragraph')
+        select(heading, heading.firstChild, 2, 8)
+      }
+
+      await action(name)
+      await until(() => source() === formatted)
+      await mode('Visual')
+      assert(
+        document.querySelector(`h2 ${tag}`)?.textContent === 'longer',
+        `${name} renders its selected words`,
+      )
+      const span = document.querySelector(`h2 ${tag}`)
+      select(span, span.firstChild, 0, 6)
+      span.dispatchEvent(
+        new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType }),
+      )
+      await until(() => source() === fixture)
+      const heading = document.querySelector('h2.mde-paragraph')
+      select(heading, heading.firstChild, 2, 8)
+      await key(heading, shortcut, { ctrlKey: true })
+      await until(() => source() === formatted)
+      document.execCommand('insertText', false, 'short')
+      await until(() => source() === formatted.replace('longer', 'short'))
+      await mode('Markdown')
+      await action('Undo')
+      await until(() => source() === formatted)
+      await action('Undo')
+      await until(() => source() === fixture)
+    }
+  }
+
+  await setSource('A longer track\n\n::music{id="keep"}')
+  const plain = document.querySelector('.mde-paragraph')
+  select(plain, plain.firstChild, 2, 8)
+
+  for (const [name, spelling] of [
+    ['Italic', '*longer*'],
+    ['Bold', '***longer***'],
+    ['Underline', '<u>***longer***</u>'],
+  ]) {
+    await action(name)
+    await until(() => source() === `A ${spelling} track\n\n::music{id="keep"}`)
+  }
+
+  assert(
+    document.querySelector('u strong em')?.textContent === 'longer',
+    'Marks compose without losing their text',
+  )
+  assert(
+    window.getSelection().toString() === 'longer',
+    'Composed marks retain the visible selection',
+  )
+  await until(
+    () =>
+      JSON.parse(document.querySelector('[aria-label="JSON document"]').textContent).nodes[0]
+        .children[1].underline,
+  )
+
+  for (const [fixture, after] of [
+    ['Before\n\n::music{id="keep"}\n\nAfter', 'Before\n\nAfter'],
+    ['::music{id="keep"}\n\nAfter', 'After'],
+    ['Before\n\n::music{id="keep"}', 'Before'],
+    ['::music{id="keep"}', ''],
+    ['::music{id="first"}\n\n::music{id="keep"}\n\nAfter', '::music{id="keep"}\n\nAfter'],
+  ]) {
+    await setSource(fixture)
+    let card = document.querySelector('.mde-protected')
+    assert(
+      card.tabIndex === 0 && card.getAttribute('role') === 'group',
+      'Protected card is keyboard-focusable and named',
+    )
+    card.focus()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'Do not insert into a focused card')
+    card.dispatchEvent(
+      new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: clipboard }),
+    )
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    assert(source() === fixture, 'Pasting on a focused card must not edit the stale text selection')
+    await key(card, fixture.startsWith('Before') ? 'Enter' : 'F2')
+    await until(() => document.querySelector('textarea'))
+    const input = document.querySelector('textarea')
+    assert(
+      input.value.slice(input.selectionStart, input.selectionEnd).startsWith('::music'),
+      'F2 opens Markdown with the whole block selected',
+    )
+    await mode('Visual')
+    card = document.querySelector('.mde-protected')
+    card.focus()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await key(card, 'Delete')
+    await until(() => source() === after)
+    await action('Undo')
+    await until(() => source() === fixture)
+    assert(
+      document.activeElement.classList.contains('mde-protected'),
+      'Undo restores block keyboard focus',
+    )
+    await key(document.activeElement, 'Backspace')
+    await until(() => source() === after)
+    await action('Undo')
+    await until(() => source() === fixture)
+  }
+
+  await setSource('Before\n\n::music{id="keep"}\n\nAfter')
+  const firstText = document.querySelector('.mde-paragraph')
+  select(firstText, firstText.firstChild, 6)
+  await key(document.querySelector('.mde-visual'), 'ArrowDown')
+  await until(() => document.activeElement.classList.contains('mde-protected'))
+  await key(document.activeElement, 'ArrowDown')
+  assert(
+    document.activeElement.classList.contains('mde-visual'),
+    'ArrowDown returns to adjacent editable text',
+  )
+  await mode('Markdown')
+  assert(
+    document.querySelector('textarea').selectionStart === 28,
+    'Card navigation places caret at the following paragraph start',
+  )
+  await mode('Visual')
+  await key(document.querySelector('.mde-visual'), 'ArrowUp')
+  await until(() => document.activeElement.classList.contains('mde-protected'))
+  await key(document.activeElement, 'ArrowUp')
+  await mode('Markdown')
+  assert(
+    document.querySelector('textarea').selectionStart === 6,
+    'ArrowUp places caret at the previous paragraph end',
+  )
+
+  for (const [fixture, paragraphIndex, offset, direction] of [
+    ['Before\n\n::music{id="keep"}\n\nAfter', 0, 2, 'ArrowDown'],
+    ['Before\n\n::music{id="keep"}\n\nAfter', 1, 2, 'ArrowUp'],
+    ['First line\nLast line\n\n::music{id="keep"}', 0, 13, 'ArrowDown'],
+  ]) {
+    await setSource(fixture)
+    const paragraph = document.querySelectorAll('.mde-paragraph')[paragraphIndex]
+    select(paragraph, paragraph.firstChild, offset)
+    await key(document.querySelector('.mde-visual'), direction)
+    assert(
+      document.activeElement.classList.contains('mde-protected'),
+      'Vertical navigation reaches the component from any column on the adjacent line',
+    )
+    await key(document.activeElement, 'Enter')
+    await until(() => document.querySelector('textarea'))
+    const input = document.querySelector('textarea')
+    assert(
+      input.value.slice(input.selectionStart, input.selectionEnd) === '::music{id="keep"}',
+      'Keyboard-only navigation opens the component source',
+    )
+  }
+
+  await setSource('First line\nLast line\n\n::music{id="keep"}')
+  const multiline = document.querySelector('.mde-paragraph')
+  select(multiline, multiline.firstChild, 2)
+  const down = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
+  document.querySelector('.mde-visual').dispatchEvent(down)
+  assert(
+    !down.defaultPrevented,
+    'Vertical navigation within a paragraph keeps native line movement',
+  )
+
+  for (const [offset, direction] of [
+    [1, 'ArrowDown'],
+    [2, 'ArrowUp'],
+    [1, 'ArrowRight'],
+    [2, 'ArrowLeft'],
+  ]) {
+    await setSource('Before\n\n::music{id="keep"}\n\nAfter')
+    const visual = document.querySelector('.mde-visual')
+    select(visual, visual, offset)
+    await key(visual, direction)
+    assert(
+      document.activeElement.classList.contains('mde-protected'),
+      'Caret positions between blocks can enter the component with arrows',
+    )
+  }
+
   for (let level = 1; level <= 6; level += 1) {
     const fixture = `Before\n ${'#'.repeat(level)}\tA **longer** title ###  \nAfter\n\n::music{id="keep"}\n`
     await setSource(fixture)
+    assert(!document.querySelector(':popover-open'), 'Formatting popovers are closed by default')
     const heading = document.querySelector(`.mde-visual > h${level}`)
     assert(heading?.textContent === 'A longer title', `Heading ${level} must hide ATX syntax`)
     assert(
@@ -65,11 +287,12 @@ async function checkEditor() {
     await mode('Visual')
     const strong = document.querySelector(`h${level} strong`)
     select(strong, strong.firstChild, 0, 6)
-    await until(() => !button('Toggle bold').disabled)
+    await until(() => !button('Bold').disabled)
     const target = level === 2 ? 3 : 2
     const converted = `Before\n${'#'.repeat(target)} A **longer** title\nAfter\n\n::music{id="keep"}\n`
     await action(`Heading ${target}`)
     await until(() => source() === converted)
+    assert(!document.querySelector(':popover-open'), 'Choosing a heading dismisses its menu')
     assert(window.getSelection().toString() === 'longer', 'Conversion restores text selection')
     await action('Paragraph')
     await until(() => source() === 'Before\nA **longer** title\nAfter\n\n::music{id="keep"}\n')
@@ -182,8 +405,8 @@ async function checkEditor() {
   const paragraph = document.querySelector('.mde-paragraph')
   const strong = paragraph.querySelector('strong')
   select(paragraph, strong.firstChild, 0, 6)
-  await until(() => !document.querySelector('[aria-label="Toggle bold"]').disabled)
-  document.querySelector('[aria-label="Toggle bold"]').click()
+  await until(() => !document.querySelector('[aria-label="Bold"]').disabled)
+  document.querySelector('[aria-label="Bold"]').click()
   await until(() => source() === fixture.replace('**longer**', 'longer'))
   await mode('Markdown')
   assert(
@@ -199,6 +422,7 @@ async function checkEditor() {
   const bangParagraph = document.querySelector('.mde-paragraph')
   select(bangParagraph, bangParagraph.firstChild, 7, 11)
   await until(() => !button('Apply link').disabled)
+  await openLink()
   const bangDestination = document.querySelector('[aria-label="Link destination"]')
   bangDestination.focus()
   bangDestination.value = '/mix'
@@ -216,13 +440,16 @@ async function checkEditor() {
   const linkParagraph = document.querySelector('.mde-paragraph')
   select(linkParagraph, linkParagraph.firstChild, 2, 8)
   await until(() => !button('Apply link').disabled)
+  await openLink()
   let destination = document.querySelector('[aria-label="Link destination"]')
   destination.focus()
   destination.value = 'javascript:evil'
   destination.dispatchEvent(new Event('input', { bubbles: true }))
   destination.closest('form').requestSubmit()
   assert(
-    !destination.validity.valid && source() === linkFixture,
+    !destination.validity.valid &&
+      source() === linkFixture &&
+      destination.closest('form').matches(':popover-open'),
     'Unsafe URL must refuse without an edit',
   )
   destination.value = '/mixes/night'
@@ -230,6 +457,8 @@ async function checkEditor() {
   destination.closest('form').requestSubmit()
   const linked = 'A [longer](/mixes/night) track.\n\n::music{id="keep"}\n'
   await until(() => source() === linked)
+  assert(!document.querySelector(':popover-open'), 'Accepted link formatting closes the popover')
+  assert(window.getSelection().toString() === 'longer', 'Link popover retains the selected words')
   const anchor = document.querySelector('.mde-paragraph a')
   assert(
     anchor?.textContent === 'longer' && anchor.getAttribute('href') === '/mixes/night',
@@ -247,6 +476,7 @@ async function checkEditor() {
   await until(
     () => document.querySelector('[aria-label="Link destination"]').value === '/mixes/night',
   )
+  await openLink()
   destination = document.querySelector('[aria-label="Link destination"]')
   destination.focus()
   destination.value = 'https://gbfm.co.za/mixes'
@@ -268,6 +498,7 @@ async function checkEditor() {
   await until(
     () => document.querySelector('[aria-label="Link destination"]').value === '/mixes/night',
   )
+  await openLink()
   destination = document.querySelector('[aria-label="Link destination"]')
   destination.focus()
   destination.value = ''
@@ -425,7 +656,7 @@ async function checkEditor() {
   await until(() => source() === '')
   await setSource('')
 
-  return 'Passed: one editing host, ATX heading levels/conversion/typing/splits/joins/selection/undo, cross-paragraph replacement and undo, JSON projection, host-selected bold, safe link insertion/replacement/removal in both modes, link label editing, splits, composition, safe paste, protected source, empty document.'
+  return 'Passed: one editing host, ATX headings, bold/italic/underline buttons and shortcuts in both modes, composed marks/typing/JSON/undo, protected-block focus/navigation/source editing/deletion/undo, cross-paragraph editing, safe links, splits, composition, safe paste, empty document.'
 }
 
 // oxlint-disable-next-line typescript/no-floating-promises -- agent-browser awaits the final expression and fails on rejection.

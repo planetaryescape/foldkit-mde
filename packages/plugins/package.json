@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./bold": "./src/bold.ts",
+    "./bold": "./src/marks.ts",
+    "./italic": "./src/marks.ts",
+    "./underline": "./src/marks.ts",
     "./heading": "./src/heading.ts",
     "./link": "./src/link.ts",
     "./json": "./src/json.ts",

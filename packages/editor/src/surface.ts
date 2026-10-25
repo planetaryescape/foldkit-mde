@@ -1,4 +1,4 @@
-import { Message as CoreMessage, Mode, Selection, type Model } from '@foldkit-mde/core'
+import { Message as CoreMessage, Mode, parse, Selection, type Model } from '@foldkit-mde/core'
 import { Effect, Queue, Schema, Stream } from 'effect'
 import * as Command from 'foldkit/command'
 import * as Mount from 'foldkit/mount'
@@ -95,6 +95,8 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
                 return
               const target = document.activeElement
 
+              if (target.closest('.mde-protected')) return
+
               if (target instanceof HTMLTextAreaElement) {
                 emit(
                   CoreMessage.cases.Selected.make({
@@ -111,6 +113,8 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
 
             const format = (id: string) => {
               const target = document.activeElement
+
+              if (target?.closest('.mde-protected')) return
               const visual = field()
 
               const state =
@@ -134,13 +138,174 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
                 )
             }
 
-            const keydown = (event: Event) => {
-              if (
-                !(event instanceof KeyboardEvent) ||
-                composing ||
-                !(event.metaKey || event.ctrlKey)
-              )
+            const focusBlock = (target: Element, forward: boolean) => {
+              if (!(target instanceof HTMLElement)) return
+
+              if (target.classList.contains('mde-protected')) {
+                target.focus()
+
                 return
+              }
+
+              const visual = field()
+
+              if (!(visual instanceof HTMLElement)) return
+              visual.focus()
+              const range = document.createRange()
+              range.selectNodeContents(target)
+              range.collapse(forward)
+              window.getSelection()?.removeAllRanges()
+              window.getSelection()?.addRange(range)
+              select()
+            }
+
+            const focusin = (event: Event) => {
+              const card =
+                event.target instanceof Element ? event.target.closest('.mde-protected') : null
+
+              const visual = field()
+
+              if (!(card instanceof HTMLElement) || !visual) return
+              const start = Number(card.dataset['start'])
+
+              const block = parse(visual.getAttribute('data-source') ?? '').find(
+                (block) => block.start === start,
+              )
+
+              if (block) {
+                window.getSelection()?.removeAllRanges()
+                emit(
+                  CoreMessage.cases.Selected.make({
+                    selection: { start: block.start, end: block.end },
+                  }),
+                )
+              }
+            }
+
+            const keydown = (event: Event) => {
+              if (!(event instanceof KeyboardEvent) || composing) return
+
+              if (!(event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)) {
+                const target = event.target
+                const visual = field()
+
+                if (!(target instanceof HTMLElement) || !visual) return
+                const card = target.classList.contains('mde-protected') ? target : undefined
+                const backward = event.key === 'ArrowUp' || event.key === 'ArrowLeft'
+                const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight'
+
+                if (card) {
+                  const source = visual.getAttribute('data-source') ?? ''
+                  const blocks = parse(source)
+
+                  const index = blocks.findIndex(
+                    (block) => block.start === Number(card.dataset['start']),
+                  )
+
+                  const block = blocks[index]
+
+                  if (!block) return
+
+                  if (event.key === 'Enter' || event.key === 'F2') {
+                    event.preventDefault()
+                    emit(
+                      CoreMessage.cases.Selected.make({
+                        selection: { start: block.start, end: block.end },
+                      }),
+                    )
+                    emit(CoreMessage.cases.ChangedMode.make({ mode: 'Markdown' }))
+                  } else if (event.key === 'Delete' || event.key === 'Backspace') {
+                    event.preventDefault()
+                    const previous = blocks[index - 1]
+                    const next = blocks[index + 1]
+                    const start = next ? block.start : (previous?.end ?? block.start)
+                    const end = next?.start ?? (previous ? block.end : source.length)
+                    emit(
+                      CoreMessage.cases.Applied.make({
+                        transaction: { start, end, text: '', selection: { start, end: start } },
+                      }),
+                    )
+                  } else if (backward || forward || event.key === 'Escape') {
+                    event.preventDefault()
+                    const adjacent = forward ? card.nextElementSibling : card.previousElementSibling
+
+                    if (adjacent) focusBlock(adjacent, forward)
+                    else if (event.key === 'Escape')
+                      focusBlock(
+                        card.nextElementSibling ?? card.previousElementSibling ?? visual,
+                        true,
+                      )
+                  }
+
+                  return
+                }
+
+                if ((backward || forward) && target === visual) {
+                  const selection = window.getSelection()
+
+                  const range =
+                    selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : undefined
+
+                  if (range?.collapsed && range.startContainer === visual) {
+                    const adjacent = visual.children[range.startOffset - Number(backward)]
+
+                    if (adjacent?.classList.contains('mde-protected')) {
+                      event.preventDefault()
+                      focusBlock(adjacent, forward)
+
+                      return
+                    }
+                  }
+
+                  const state = read(visual)
+                  const value = state.selection
+
+                  const entry = state.entries.find(
+                    (entry) =>
+                      entry.block.editable &&
+                      value &&
+                      entry.block.start <= value.start &&
+                      entry.block.end >= value.end,
+                  )
+
+                  const block = entry?.block
+
+                  const adjacent =
+                    entry?.node instanceof Element
+                      ? forward
+                        ? entry.node.nextElementSibling
+                        : entry.node.previousElementSibling
+                      : null
+
+                  if (
+                    !entry ||
+                    !value ||
+                    value.start !== value.end ||
+                    !adjacent?.classList.contains('mde-protected')
+                  )
+                    return
+
+                  const boundary = forward ? block?.inlines.at(-1)?.end : block?.inlines[0]?.start
+                  const lines = document.createRange()
+                  lines.selectNodeContents(entry.node)
+                  const rectangles = Array.from(lines.getClientRects())
+                  const edge = forward ? rectangles.at(-1) : rectangles[0]
+                  const caret = range?.getClientRects()[0]
+                  const vertical = event.key === 'ArrowUp' || event.key === 'ArrowDown'
+
+                  const onEdgeLine =
+                    caret && edge && caret.top < edge.bottom && caret.bottom > edge.top
+
+                  if (value.start === boundary || (vertical && onEdgeLine)) {
+                    event.preventDefault()
+                    focusBlock(adjacent, forward)
+                  }
+                }
+
+                return
+              }
+
+              if (!(event.metaKey || event.ctrlKey) || event.altKey) return
               const key = event.key.toLowerCase()
               const tool = tools.find((tool) => tool.kind === 'Button' && tool.shortcut === key)
 
@@ -218,6 +383,8 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
             const paste = (event: Event) => {
               if (!(event instanceof ClipboardEvent) || !field()) return
               event.preventDefault()
+
+              if (document.activeElement?.closest('.mde-protected')) return
               const selection = window.getSelection()
 
               const range =
@@ -238,6 +405,7 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
 
             const listeners = new Map<string, EventListener>([
               ['input', input],
+              ['focusin', focusin],
               ['keydown', keydown],
               ['beforeinput', beforeinput],
               ['click', click],

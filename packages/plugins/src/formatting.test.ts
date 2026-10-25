@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 
-import { init, Message, update } from '@foldkit-mde/core'
+import { init, Message, parse, sourceOffset, update } from '@foldkit-mde/core'
 import { Arbitrary, Effect, Schema } from 'effect'
 
 import { heading } from './heading'
@@ -27,13 +27,17 @@ test('bold transactions preserve surrounding source, selection whitespace and sh
     source,
   )
   expect(update(formatted, Message.cases.Undo.make({})).source).toBe(source)
-  expect(bold.apply('A  longer track.', { start: 2, end: 10 })).toEqual({
-    start: 3,
-    end: 9,
-    text: '**longer**',
-    selection: { start: 5, end: 11 },
-  })
-  expect(bold.apply('A **longer** track.', { start: 6, end: 9 })).toBeUndefined()
+  const spaced = bold.apply('A  longer track.', { start: 2, end: 10 })
+
+  if (!spaced) throw new Error('Expected whitespace-preserving formatting')
+
+  const spacedModel = update(
+    init('A  longer track.'),
+    Message.cases.Applied.make({ transaction: spaced }),
+  )
+
+  expect(spacedModel.source).toBe('A  **longer** track.')
+  expect(spacedModel.selection).toEqual({ start: 5, end: 11 })
   expect(bold.apply('   ', { start: 0, end: 3 })).toBeUndefined()
   expect(bold.apply(source, { start: 14, end: 14 })).toBeUndefined()
   expect(bold.apply(source, { start: 0, end: 14 })).toBeUndefined()
@@ -124,13 +128,65 @@ test('inline marks compose, toggle independently and restore source and selectio
   }
 
   for (const plugin of [italic, underline, strikethrough]) {
-    expect(plugin.apply('A **longer** track.', { start: 6, end: 9 })).toBeUndefined()
     expect(plugin.apply('[longer](/mix)', { start: 1, end: 7 })).toBeUndefined()
     expect(plugin.apply('::music{id="keep"}', { start: 2, end: 7 })).toBeUndefined()
     expect(plugin.apply('one\ntwo', { start: 0, end: 7 })).toBeUndefined()
     expect(plugin.apply('   ', { start: 0, end: 3 })).toBeUndefined()
-    expect(plugin.apply('**<u>longer</u> track**', { start: 5, end: 11 })).toBeUndefined()
   }
+})
+
+test('partial and mixed selections toggle only the chosen mark and retain selection and undo', () => {
+  for (const [id, plugin, marked] of [
+    ['bold', bold, '**tracks that stay with you**'],
+    ['italic', italic, '*tracks that stay with you*'],
+    ['underline', underline, '<u>tracks that stay with you</u>'],
+    ['strikethrough', strikethrough, '~~tracks that stay with you~~'],
+  ] as const) {
+    const source = `Before\r\n\r\n> A place for the ${marked}.\r\n\r\n::music{id="keep"}\r\n`
+    const start = source.indexOf('tracks')
+    const selection = { start, end: start + 'tracks that stay'.length }
+    const initial = update(init(source), Message.cases.Selected.make({ selection }))
+    const transaction = plugin.apply(source, selection)
+    expect(transaction, plugin.id).toBeDefined()
+
+    if (!transaction) throw new Error('Expected partial mark removal')
+    const changed = update(initial, Message.cases.Applied.make({ transaction }))
+    const block = parse(changed.source)[1]
+    expect(block?.inlines.map((inline) => inline.text).join('')).toBe(
+      'A place for the tracks that stay with you.',
+    )
+    expect(changed.source.slice(changed.selection.start, changed.selection.end)).toBe(
+      'tracks that stay',
+    )
+    expect(block?.inlines.find((inline) => inline.text.includes('tracks'))?.[id]).toBe(false)
+    expect(block?.inlines.find((inline) => inline.text.includes('with you'))?.[id]).toBe(true)
+    expect(changed.source.startsWith('Before\r\n\r\n> ')).toBe(true)
+    expect(changed.source.endsWith('\r\n\r\n::music{id="keep"}\r\n')).toBe(true)
+    const undone = update(changed, Message.cases.Undo.make({}))
+    expect(undone.source).toBe(source)
+    expect(undone.selection).toEqual(selection)
+    const restored = plugin.apply(changed.source, changed.selection)
+
+    if (!restored) throw new Error('Expected selected mark reapplication')
+    expect(update(changed, Message.cases.Applied.make({ transaction: restored })).source).toBe(
+      source,
+    )
+  }
+
+  const source = 'A **longer** plain *ending*.'
+  const selection = { start: source.indexOf('longer'), end: source.indexOf('ending') + 6 }
+  const transaction = bold.apply(source, selection)
+
+  if (!transaction) throw new Error('Expected mixed selection formatting')
+  const changed = update(init(source), Message.cases.Applied.make({ transaction }))
+  expect(
+    parse(changed.source)[0]
+      ?.inlines.filter((inline) => /longer|plain|ending/.test(inline.text))
+      .every((inline) => inline.bold),
+  ).toBe(true)
+  expect(
+    parse(changed.source)[0]?.inlines.find((inline) => inline.text.includes('ending'))?.italic,
+  ).toBe(true)
 })
 
 test('generated mark histories match independent spellings, source boundaries and undo selections', async () => {
@@ -212,6 +268,105 @@ test('generated mark histories match independent spellings, source boundaries an
         return true
       },
       { seed: 2391, runs: 150, size: 30 },
+    ),
+  )
+
+  expect(result._tag, JSON.stringify(result)).toBe('Passed')
+})
+
+test('generated partial mark histories match an independent per-character style model', async () => {
+  // oxlint-disable-next-line effecttsgo/unstable-api-usage -- Pinned Schema-derived generation exercises public transactions.
+  const cases = Arbitrary.schema(
+    Schema.Struct({
+      parts: Schema.Array(Schema.Literals(['a', '界', '🎵', ' '])),
+      operations: Schema.Array(
+        Schema.Struct({
+          mark: Schema.Literals(['bold', 'italic', 'underline', 'strikethrough']),
+          from: Schema.Literals([0, 1, 2, 3, 5, 8, 13]),
+          size: Schema.Literals([1, 2, 4, 7, 11]),
+        }),
+      ),
+    }),
+  )
+
+  const plugins = { bold, italic, underline, strikethrough }
+  const bits = { bold: 1, italic: 2, underline: 4, strikethrough: 8 }
+  const keys = ['bold', 'italic', 'underline', 'strikethrough'] as const
+
+  const result = await Effect.runPromise(
+    // oxlint-disable-next-line effecttsgo/unstable-api-usage -- Independent character flags, not formatter spelling, decide expected styles.
+    Arbitrary.checkEffect(
+      cases,
+      ({ parts, operations }) => {
+        const label = `Left ${parts.join('')} middle tail`
+        const units = Array.from(label)
+        const expected = Array.from({ length: label.length }, () => 15)
+        const before = 'Before\r\n\r\n## '
+        const after = ' {align=right}\r\n\r\n::music{id="keep"}\r\n'
+        let model = init(before + '<u>~~***' + label + '***~~</u>' + after)
+        const history = []
+
+        for (const operation of operations) {
+          const first = operation.from % units.length
+          const last = Math.min(units.length, first + operation.size)
+          const chosen = units.slice(first, last).join('')
+          const selected = chosen.trim()
+
+          if (!selected) continue
+
+          const from =
+            units.slice(0, first).join('').length + chosen.length - chosen.trimStart().length
+
+          const to = from + selected.length
+          const block = parse(model.source)[1]
+
+          if (!block) return false
+
+          const selection = {
+            start: sourceOffset(block, from),
+            end: sourceOffset(block, to, 'backward'),
+          }
+
+          const transaction = plugins[operation.mark].apply(model.source, selection)
+
+          if (!transaction) return false
+          history.push(update(model, Message.cases.Selected.make({ selection })))
+          const bit = bits[operation.mark]
+          const remove = expected.slice(from, to).every((mask) => (mask & bit) !== 0)
+
+          for (let i = from; i < to; i++)
+            expected[i] = remove ? (expected[i] ?? 0) & ~bit : (expected[i] ?? 0) | bit
+          model = update(history.at(-1) ?? model, Message.cases.Applied.make({ transaction }))
+          const changed = parse(model.source)[1]
+
+          const actual = changed?.inlines.flatMap((inline) =>
+            inline.text
+              .split('')
+              .map(() => keys.reduce((mask, key) => mask | (inline[key] ? bits[key] : 0), 0)),
+          )
+
+          if (
+            JSON.stringify(actual) !== JSON.stringify(expected) ||
+            changed?.inlines.map((inline) => inline.text).join('') !== label ||
+            !model.source.startsWith(before) ||
+            !model.source.endsWith(after)
+          )
+            return false
+        }
+
+        for (const previous of history.reverse()) {
+          model = update(model, Message.cases.Undo.make({}))
+
+          if (
+            model.source !== previous.source ||
+            JSON.stringify(model.selection) !== JSON.stringify(previous.selection)
+          )
+            return false
+        }
+
+        return true
+      },
+      { seed: 9381, runs: 200, size: 40 },
     ),
   )
 

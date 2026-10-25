@@ -1,4 +1,4 @@
-import { parse, parseInlines } from '@foldkit-mde/core'
+import { parse, parseBlock, sourceOffset, visualOffset, type Block } from '@foldkit-mde/core'
 import type { FormattingPlugin } from '@foldkit-mde/core/plugins'
 
 const mark = (id: 'bold' | 'italic' | 'underline' | 'strikethrough'): FormattingPlugin => ({
@@ -11,75 +11,109 @@ const mark = (id: 'bold' | 'italic' | 'underline' | 'strikethrough'): Formatting
 
     if (!block?.editable || /[\r\n]/.test(source.slice(start, end))) return undefined
 
-    const inline = block.inlines.find((inline) => {
-      const opening =
-        Number(inline.bold) * 2 +
-        Number(inline.italic) +
-        Number(inline.underline) * 3 +
-        Number(inline.strikethrough) * 2
-
-      const closing = opening + Number(inline.underline)
-
-      return (
-        (start >= inline.start && end <= inline.end) ||
-        (start === inline.start - opening && end === inline.end + closing)
-      )
-    })
-
-    if (!inline || inline.href !== undefined) return undefined
-    const marked = inline.bold || inline.italic || inline.underline || inline.strikethrough
-
-    if (marked && !(start <= inline.start && end >= inline.end)) return undefined
-    const selected = marked ? inline.text : source.slice(start, end)
+    const visible = block.inlines.map((inline) => inline.text).join('')
+    const left = visualOffset(block, start)
+    const right = visualOffset(block, end)
+    const selected = visible.slice(left, right)
     const content = selected.trim()
 
     if (!content) return undefined
+    const from = left + selected.length - selected.trimStart().length
+    const to = right - (selected.length - selected.trimEnd().length)
+    let offset = 0
 
-    const opening =
-      Number(inline.bold) * 2 +
-      Number(inline.italic) +
-      Number(inline.underline) * 3 +
-      Number(inline.strikethrough) * 2
+    const selectedInlines = block.inlines.filter((inline) => {
+      const overlaps = offset < to && offset + inline.text.length > from
+      offset += inline.text.length
 
-    const closing = opening + Number(inline.underline)
+      return overlaps
+    })
 
-    const from = marked
-      ? inline.start - opening
-      : start + selected.length - selected.trimStart().length
+    if (selectedInlines.some((inline) => inline.href !== undefined)) return undefined
+    const enabled = !selectedInlines.every((inline) => inline[id])
 
-    const to = marked ? inline.end + closing : end - (selected.length - selected.trimEnd().length)
-    const whole = parseInlines(source.slice(from, to))
+    const runs: Array<
+      Pick<
+        Block['inlines'][number],
+        'text' | 'bold' | 'italic' | 'underline' | 'strikethrough' | 'link'
+      >
+    > = []
 
-    if (
-      marked &&
-      (from < block.start || to > block.end || whole.length !== 1 || whole[0]?.text !== inline.text)
-    )
-      return undefined
+    const append = (inline: Block['inlines'][number], text: string, selected: boolean) => {
+      if (!text) return
+      const run = { ...inline, text, [id]: selected ? enabled : inline[id] }
+      const previous = runs.at(-1)
 
-    const marks = {
-      bold: inline.bold,
-      italic: inline.italic,
-      underline: inline.underline,
-      strikethrough: inline.strikethrough,
-      [id]: !inline[id],
+      if (
+        previous &&
+        !previous.link &&
+        !run.link &&
+        (['bold', 'italic', 'underline', 'strikethrough'] as const).every(
+          (key) => previous[key] === run[key],
+        )
+      ) {
+        runs[runs.length - 1] = { ...previous, text: previous.text + text }
+      } else runs.push(run)
     }
 
-    const stars = '*'.repeat(Number(marks.bold) * 2 + Number(marks.italic))
-    const strike = marks.strikethrough ? '~~' : ''
-    const prefix = (marks.underline ? '<u>' : '') + strike + stars
-    const suffix = stars + strike + (marks.underline ? '</u>' : '')
-    const text = marked ? inline.text : content
+    offset = 0
+
+    for (const inline of block.inlines) {
+      const before = Math.max(0, Math.min(inline.text.length, from - offset))
+      const after = Math.max(before, Math.min(inline.text.length, to - offset))
+      append(inline, inline.text.slice(0, before), false)
+      append(inline, inline.text.slice(before, after), true)
+      append(inline, inline.text.slice(after), false)
+      offset += inline.text.length
+    }
+
+    let previousLink: number | undefined
+
+    const body = runs
+      .map((run) => {
+        if (run.link) {
+          if (previousLink === run.link.start) return ''
+          previousLink = run.link.start
+
+          return source.slice(run.link.start, run.link.end)
+        }
+
+        previousLink = undefined
+        const stars = '*'.repeat(Number(run.bold) * 2 + Number(run.italic))
+        const strike = run.strikethrough ? '~~' : ''
+
+        return (
+          (run.underline ? '<u>' : '') +
+          strike +
+          stars +
+          run.text +
+          stars +
+          strike +
+          (run.underline ? '</u>' : '')
+        )
+      })
+      .join('')
+
+    const prefix = block.heading?.prefix ?? block.quote?.prefix ?? block.list?.prefix ?? ''
+    const text = prefix + body + (block.heading?.suffix ?? '') + (block.alignment?.suffix ?? '')
+    const proposed = parseBlock(text, block.start)
+
+    if (!proposed.editable || proposed.inlines.map((inline) => inline.text).join('') !== visible)
+      return undefined
 
     return {
-      start: from,
-      end: to,
-      text: prefix + text + suffix,
-      selection: { start: from + prefix.length, end: from + prefix.length + text.length },
+      start: block.start,
+      end: block.end,
+      text,
+      selection: {
+        start: sourceOffset(proposed, from),
+        end: sourceOffset(proposed, to, 'backward'),
+      },
     }
   },
 })
 
-/** Toggle bold on plain text or a complete marked span through a core transaction. */
+/** Toggle bold on a visible selection, splitting or combining marked spans as needed. */
 export const bold = mark('bold')
 
 /** Toggle asterisk italic without rewriting surrounding Markdown. */

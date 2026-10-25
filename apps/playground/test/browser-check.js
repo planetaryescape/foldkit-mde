@@ -503,6 +503,59 @@ async function checkEditor() {
     }
   }
 
+  for (const [name, marked, expected, shortcut, tag] of [
+    ['Bold', '**tracks that stay with you**', 'tracks that stay** with you**', 'b', 'strong'],
+    ['Italic', '*tracks that stay with you*', 'tracks that stay* with you*', 'i', 'em'],
+    ['Underline', '<u>tracks that stay with you</u>', 'tracks that stay<u> with you</u>', 'u', 'u'],
+    [
+      'Strikethrough',
+      '~~tracks that stay with you~~',
+      'tracks that stay~~ with you~~',
+      undefined,
+      's',
+    ],
+  ]) {
+    for (const editingMode of ['Visual', 'Markdown']) {
+      const fixture = `A place for the ${marked}.\n\n::music{id="keep"}`
+      await setSource(fixture)
+
+      if (editingMode === 'Markdown') {
+        await mode('Markdown')
+        const input = document.querySelector('textarea')
+        const start = fixture.indexOf('tracks')
+        input.focus()
+        input.setSelectionRange(start, start + 16)
+        document.dispatchEvent(new Event('selectionchange'))
+      } else {
+        const span = document.querySelector(`.mde-paragraph ${tag}`)
+        select(span, span.firstChild, 0, 16)
+      }
+
+      await until(() => !button(name).disabled)
+
+      if (shortcut) await key(document.activeElement, shortcut, { metaKey: true })
+      else await action(name)
+      await until(() => source() === `A place for the ${expected}.\n\n::music{id="keep"}`)
+      await mode('Visual')
+      assert(
+        window.getSelection().toString() === 'tracks that stay',
+        `${name} retains partial selection`,
+      )
+      assert(
+        document.querySelector(`.mde-paragraph ${tag}`)?.textContent === ' with you',
+        `${name} preserves the unselected marked words`,
+      )
+      await mode('Markdown')
+      await action('Undo')
+      await until(() => source() === fixture)
+      await mode('Visual')
+      assert(
+        window.getSelection().toString() === 'tracks that stay',
+        `${name} undo restores partial selection across modes`,
+      )
+    }
+  }
+
   await setSource('A longer track\n\n::music{id="keep"}')
   const plain = document.querySelector('.mde-paragraph')
   select(plain, plain.firstChild, 2, 8)

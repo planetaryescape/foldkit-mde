@@ -52,19 +52,22 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
             h.div(
               [h.Class('mde-modes'), h.AriaLabel('Editing mode')],
               [
-                ...['Visual', 'Markdown'].map((mode) =>
-                  h.button(
-                    [
-                      h.Type('button'),
-                      h.Class(model.mode === mode ? 'is-active' : ''),
-                      h.AriaPressed(String(model.mode === mode)),
-                      h.OnClick(
-                        CoreMessage.cases.ChangedMode.make({
-                          mode: mode === 'Visual' ? 'Visual' : 'Markdown',
-                        }),
-                      ),
-                    ],
-                    [mode],
+                h.div(
+                  [h.Class('mde-mode-switch')],
+                  ['Visual', 'Markdown'].map((mode) =>
+                    h.button(
+                      [
+                        h.Type('button'),
+                        h.Class(model.mode === mode ? 'is-active' : ''),
+                        h.AriaPressed(String(model.mode === mode)),
+                        h.OnClick(
+                          CoreMessage.cases.ChangedMode.make({
+                            mode: mode === 'Visual' ? 'Visual' : 'Markdown',
+                          }),
+                        ),
+                      ],
+                      [mode],
+                    ),
                   ),
                 ),
                 h.span(
@@ -81,7 +84,15 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                     return [
                       h.span([h.Class('mde-toolbar-divider'), h.AriaHidden(true)], []),
                       h.button(
-                        [h.Type('button'), h.Popovertarget(`mde-input-${tool.plugin.id}`)],
+                        [
+                          h.Type('button'),
+                          h.Title(
+                            tool.shortcut
+                              ? `${tool.label} (Ctrl/⌘+${tool.shortcut.toUpperCase()})`
+                              : tool.label,
+                          ),
+                          h.Popovertarget(`mde-input-${tool.plugin.id}`),
+                        ],
                         [tool.triggerLabel ?? tool.inputLabel],
                       ),
                     ]
@@ -123,7 +134,22 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                     h.Disabled(model.past.length === 0),
                     h.OnClick(CoreMessage.cases.Undo.make({})),
                   ],
-                  ['↶'],
+                  [
+                    h.svg(
+                      [
+                        h.ViewBox('0 0 24 24'),
+                        h.Width('18'),
+                        h.Height('18'),
+                        h.Fill('none'),
+                        h.Stroke('currentColor'),
+                        h.StrokeWidth('1.75'),
+                        h.StrokeLinecap('round'),
+                        h.StrokeLinejoin('round'),
+                        h.AriaHidden(true),
+                      ],
+                      [h.path([h.D('M9 14 4 9l5-5 M4 9h10a6 6 0 0 1 0 12')], [])],
+                    ),
+                  ],
                 ),
                 h.button(
                   [
@@ -134,7 +160,22 @@ export const make = (tools: ReadonlyArray<FormattingTool> = []) => {
                     h.Disabled(model.future.length === 0),
                     h.OnClick(CoreMessage.cases.Redo.make({})),
                   ],
-                  ['↷'],
+                  [
+                    h.svg(
+                      [
+                        h.ViewBox('0 0 24 24'),
+                        h.Width('18'),
+                        h.Height('18'),
+                        h.Fill('none'),
+                        h.Stroke('currentColor'),
+                        h.StrokeWidth('1.75'),
+                        h.StrokeLinecap('round'),
+                        h.StrokeLinejoin('round'),
+                        h.AriaHidden(true),
+                      ],
+                      [h.path([h.D('M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12')], [])],
+                    ),
+                  ],
                 ),
               ],
             ),

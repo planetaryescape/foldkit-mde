@@ -77,6 +77,109 @@ async function checkEditor() {
     await new Promise((resolve) => requestAnimationFrame(resolve))
   }
 
+  const editor = document.querySelector('.mde')
+
+  for (const width of [320, 360, 480, 600, 740, 960]) {
+    editor.style.width = `${width}px`
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    const bounds = editor.getBoundingClientRect()
+
+    const actions = [...editor.querySelectorAll('.mde-actions > button')].map((button) =>
+      button.getBoundingClientRect(),
+    )
+
+    assert(
+      Math.max(...actions.map((rect) => rect.top)) <
+        Math.min(...actions.map((rect) => rect.bottom)) &&
+        actions.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right) &&
+        editor.querySelector('.mde-toolbar').getBoundingClientRect().height < 120,
+      `Toolbar actions stay together and fit at editor width ${width}`,
+    )
+  }
+
+  editor.style.removeProperty('width')
+
+  for (const editingMode of ['Visual', 'Markdown']) {
+    const fixture = 'A longer track\n\n::music{id="keep"}'
+    await setSource(fixture)
+
+    const highlight = async () => {
+      if (editingMode === 'Markdown') {
+        await mode('Markdown')
+        const input = document.querySelector('textarea')
+        input.focus()
+        input.setSelectionRange(2, 8)
+        document.dispatchEvent(new Event('selectionchange'))
+
+        return input
+      }
+
+      const paragraph = document.querySelector('.mde-paragraph')
+      select(paragraph, paragraph.firstChild, 2, 8)
+
+      return paragraph
+    }
+
+    await key(
+      await highlight(),
+      'k',
+      editingMode === 'Visual' ? { metaKey: true } : { ctrlKey: true },
+    )
+    await until(
+      () =>
+        document.querySelector('.mde-format-input').matches(':popover-open') &&
+        document.activeElement.getAttribute('aria-label') === 'Link destination',
+    )
+    const destination = document.activeElement
+    destination.value = 'https://example.test/night'
+    destination.dispatchEvent(new Event('input', { bubbles: true }))
+    destination.form.requestSubmit()
+    await until(
+      () => source() === 'A [longer](https://example.test/night) track\n\n::music{id="keep"}',
+    )
+    await action('Undo')
+    await until(() => source() === fixture)
+
+    for (const url of ['https://example.test/mix?side=b', '/mixes/night']) {
+      const target = await highlight()
+      const clipboard = new DataTransfer()
+      clipboard.setData('text/plain', url)
+      target.dispatchEvent(
+        new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: clipboard }),
+      )
+      await until(() => source() === `A [longer](${url}) track\n\n::music{id="keep"}`)
+      await action('Undo')
+      await until(() => source() === fixture)
+    }
+
+    for (const text of ['ordinary words', 'javascript:evil']) {
+      await setSource(fixture)
+      const target = await highlight()
+      const clipboard = new DataTransfer()
+      clipboard.setData('text/plain', text)
+
+      const paste = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: clipboard,
+      })
+
+      target.dispatchEvent(paste)
+
+      if (editingMode === 'Visual') {
+        await until(() => source() === fixture.replace('longer', text))
+        assert(
+          !document.querySelector('.mde-visual a'),
+          'Plain or unsafe clipboard text is not linked',
+        )
+      } else
+        assert(
+          !paste.defaultPrevented && source() === fixture,
+          'Ordinary Markdown paste is left to the native textarea',
+        )
+    }
+  }
+
   const modeFixture = 'A longer track\n\n::music{id="keep"}'
   await setSource(modeFixture)
   const modeParagraph = document.querySelector('.mde-paragraph')

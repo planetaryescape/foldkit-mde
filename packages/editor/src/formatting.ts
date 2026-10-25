@@ -18,6 +18,8 @@ export type FormattingTool =
       readonly plugin: FormattingPlugin<string>
       readonly inputLabel: string
       readonly triggerLabel?: string
+      readonly shortcut?: string
+      readonly paste?: 'url'
       readonly hint: string
       readonly readInput: (source: string, selection: Core.Selection) => string
     }

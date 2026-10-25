@@ -68,6 +68,8 @@ const editor = Editor.make({
       kind: 'Input',
       label: 'Apply link',
       triggerLabel: 'Link',
+      shortcut: 'k',
+      paste: 'url',
       plugin: link,
       inputLabel: 'Link destination',
       readInput: linkInput,

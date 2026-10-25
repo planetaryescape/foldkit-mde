@@ -110,7 +110,7 @@ const apply = (
       after += spelling(inline, inline.text.slice(right))
     }
 
-    const prefix = block.heading?.prefix ?? block.list?.prefix ?? ''
+    const prefix = block.heading?.prefix ?? block.quote?.prefix ?? block.list?.prefix ?? ''
 
     const text =
       prefix +

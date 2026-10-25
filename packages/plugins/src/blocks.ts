@@ -1,5 +1,52 @@
-import { parse, type Block } from '@foldkit-mde/core'
+import { parse, parseBlock, type Block } from '@foldkit-mde/core'
 import type { FormattingPlugin } from '@foldkit-mde/core/plugins'
+
+import { heading } from './heading'
+
+/** Toggle one single-line block between a quote and a paragraph. */
+export const quote: FormattingPlugin = {
+  id: 'quote',
+  apply: (source, selection) => {
+    if (selection.start < 0 || selection.end < selection.start || selection.end > source.length)
+      return undefined
+
+    const block = parse(source).find(
+      (block) => block.start <= selection.start && block.end >= selection.end,
+    )
+
+    if (!block?.editable || /[\r\n]/.test(block.source)) return undefined
+
+    if (block.quote) return heading(0).apply(source, selection)
+    const prefix = block.heading?.prefix ?? block.list?.prefix ?? ''
+    const suffix = (block.heading?.suffix ?? '') + (block.alignment?.suffix ?? '')
+    const content = block.source.slice(prefix.length, block.source.length - suffix.length)
+    const text = '> ' + content + (block.alignment?.suffix ?? '')
+    const converted = parseBlock(text)
+
+    if (
+      !converted.editable ||
+      converted.inlines.map((inline) => inline.text).join('') !==
+        block.inlines.map((inline) => inline.text).join('')
+    )
+      return undefined
+    const newline = source.includes('\r\n') ? '\r\n' : '\n'
+
+    const after =
+      source.slice(block.end).trim() && !source.slice(block.end).startsWith(newline + newline)
+        ? newline
+        : ''
+
+    const point = (offset: number) =>
+      block.start + 2 + Math.max(0, Math.min(content.length, offset - block.start - prefix.length))
+
+    return {
+      start: block.start,
+      end: block.end,
+      text: text + after,
+      selection: { start: point(selection.start), end: point(selection.end) },
+    }
+  },
+}
 
 /** Toggle a selection of single-line blocks between flat lists and paragraphs. */
 export const list = (kind: 'bullet' | 'ordered'): FormattingPlugin => ({
@@ -29,12 +76,19 @@ export const list = (kind: 'bullet' | 'ordered'): FormattingPlugin => ({
     const remove = selected.every((block) => block.list?.kind === kind)
     const newline = source.includes('\r\n') ? '\r\n' : '\n'
     const separator = remove ? newline + newline : newline
-    let text = ''
+
+    let text =
+      remove &&
+      blocks[first - 1]?.quote &&
+      !source.slice(0, opening.start).endsWith(newline + newline)
+        ? newline
+        : ''
+
     let start = 0
     let end = 0
 
     for (const [index, block] of selected.entries()) {
-      const prefix = block.list?.prefix ?? block.heading?.prefix ?? ''
+      const prefix = block.list?.prefix ?? block.quote?.prefix ?? block.heading?.prefix ?? ''
       const suffix = (block.heading?.suffix ?? '') + (block.alignment?.suffix ?? '')
       const content = block.source.slice(prefix.length, block.source.length - suffix.length)
       const marker = remove ? '' : kind === 'bullet' ? '- ' : `${index + 1}. `

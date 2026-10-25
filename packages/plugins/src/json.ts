@@ -21,6 +21,11 @@ const Node = Schema.TaggedUnion({
     children: Children,
     alignment: Schema.optionalKey(Schema.Literals(['left', 'center', 'right', 'justify'])),
   },
+  Blockquote: {
+    span: Span,
+    children: Children,
+    alignment: Schema.optionalKey(Schema.Literals(['left', 'center', 'right', 'justify'])),
+  },
   Heading: {
     span: Span,
     level: Schema.Literals([1, 2, 3, 4, 5, 6]),
@@ -38,7 +43,7 @@ const Node = Schema.TaggedUnion({
 })
 
 export const JsonDocument = Schema.Struct({
-  version: Schema.Literal(5),
+  version: Schema.Literal(6),
   source: Schema.String,
   nodes: Schema.Array(Node),
 })
@@ -48,7 +53,7 @@ export type JsonDocument = typeof JsonDocument.Type
 export const json: Representation<JsonDocument> = {
   id: 'json',
   project: (source) => ({
-    version: 5,
+    version: 6,
     source,
     nodes: parse(source).map((block) => {
       const span = { start: block.start, end: block.end }
@@ -68,6 +73,8 @@ export const json: Representation<JsonDocument> = {
       })
 
       const aligned = block.alignment ? { alignment: block.alignment.value } : {}
+
+      if (block.quote) return Node.cases.Blockquote.make({ span, children, ...aligned })
 
       if (block.list)
         return block.list.kind === 'ordered'

@@ -8,17 +8,21 @@ export const heading = (level: 0 | 1 | 2 | 3 | 4 | 5 | 6): FormattingPlugin => (
     if (selection.start < 0 || selection.end < selection.start || selection.end > source.length)
       return undefined
 
-    const block = parse(source).find(
+    const blocks = parse(source)
+
+    const index = blocks.findIndex(
       (block) => block.start <= selection.start && block.end >= selection.end,
     )
+
+    const block = blocks[index]
 
     if (
       !block?.editable ||
       /[\r\n]/.test(block.source) ||
-      (!block.list && (block.heading?.level ?? 0) === level)
+      (!block.list && !block.quote && (block.heading?.level ?? 0) === level)
     )
       return undefined
-    const prefix = block.heading?.prefix ?? block.list?.prefix ?? ''
+    const prefix = block.heading?.prefix ?? block.quote?.prefix ?? block.list?.prefix ?? ''
     const suffix = (block.heading?.suffix ?? '') + (block.alignment?.suffix ?? '')
     const content = block.source.slice(prefix.length, block.source.length - suffix.length)
     const marker = level === 0 ? '' : `${'#'.repeat(level)} `
@@ -33,14 +37,34 @@ export const heading = (level: 0 | 1 | 2 | 3 | 4 | 5 | 6): FormattingPlugin => (
     )
       return undefined
     const start = block.start + prefix.length
+    const newline = source.includes('\r\n') ? '\r\n' : '\n'
+
+    const before =
+      (block.quote || blocks[index - 1]?.quote) &&
+      level === 0 &&
+      block.start > 0 &&
+      !source.slice(0, block.start).endsWith(newline + newline)
+        ? newline
+        : ''
+
+    const after =
+      block.quote &&
+      level === 0 &&
+      block.end < source.length &&
+      !source.slice(block.end).startsWith(newline + newline)
+        ? newline
+        : ''
 
     const point = (offset: number) =>
-      block.start + marker.length + Math.max(0, Math.min(content.length, offset - start))
+      block.start +
+      before.length +
+      marker.length +
+      Math.max(0, Math.min(content.length, offset - start))
 
     return {
       start: block.start,
       end: block.end,
-      text,
+      text: before + text + after,
       selection: { start: point(selection.start), end: point(selection.end) },
     }
   },

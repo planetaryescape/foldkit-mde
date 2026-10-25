@@ -16,6 +16,77 @@
   padding: clamp(1.5rem, 5vw, 4rem);
 }
 
+.mde-link-preview {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  box-sizing: border-box;
+  max-width: min(32rem, calc(100vw - 1rem));
+  padding: 0.3rem 0.35rem 0.3rem 0.7rem;
+  border-radius: 6px;
+  background: #252d28;
+  color: #fffefa;
+  box-shadow: 0 4px 16px #252d2826;
+  font:
+    0.75rem / 1.5 ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
+}
+
+.mde-link-url {
+  min-width: 0;
+}
+
+.mde-link-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.1rem;
+}
+
+.mde-link-actions a,
+.mde-link-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #fffefa;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mde-link-actions svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.mde-link-actions a:hover,
+.mde-link-actions button:hover {
+  background: #3b493f;
+}
+
+.mde-link-actions :focus-visible {
+  outline: 2px solid #fffefa;
+  outline-offset: 2px;
+}
+
+.mde-link-feedback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .mde-source {
   display: block;
   box-sizing: border-box;
@@ -308,6 +379,14 @@
 
 .mde-list > .mde-paragraph {
   margin-bottom: 0.2rem;
+}
+
+.mde-visual > blockquote {
+  margin: 1.2rem 0;
+  padding-inline-start: 1.25rem;
+  border-inline-start: 3px solid #a1b39e;
+  color: #4b5b4d;
+  font-style: italic;
 }
 
 .mde-visual > h1,

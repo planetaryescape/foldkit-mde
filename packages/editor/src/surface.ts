@@ -5,6 +5,7 @@ import * as Mount from 'foldkit/mount'
 
 import { backspace, read, renderVisual, split } from './document'
 import { Formatted, Message, type FormattingTool } from './formatting'
+import { observe as observeLinkPreview } from './link-preview'
 
 const fields = { source: Schema.String, mode: Mode, selection: Selection }
 
@@ -52,8 +53,9 @@ export const observe = (tools: ReadonlyArray<FormattingTool>) =>
     execute: ({ element, source, mode, selection }) =>
       Stream.callback<Message>((queue) =>
         Effect.acquireRelease(
-          Effect.sync(() => {
+          Effect.gen(function* () {
             render(element, { source, mode, selection }, false)
+            yield* observeLinkPreview(element)
             let composing = false
             let inputFrame = 0
 

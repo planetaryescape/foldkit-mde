@@ -21,6 +21,7 @@ export interface Block {
   readonly source: string
   readonly editable: boolean
   readonly inlines: ReadonlyArray<Inline>
+  readonly quote?: { readonly prefix: string }
   readonly list?: { readonly prefix: string } & (
     | { readonly kind: 'bullet' }
     | { readonly kind: 'ordered'; readonly ordinal: number }
@@ -127,6 +128,8 @@ export const parseBlock = (source: string, start = 0): Block => {
 
   const alignment = value && aligned ? { value, suffix: aligned[0] } : undefined
   const body = alignment ? source.slice(0, -alignment.suffix.length) : source
+  const quoteMarker = /^>(?: |$)/.exec(body)
+  const quote = quoteMarker && !/[\r\n]/.test(body) ? { prefix: quoteMarker[0] } : undefined
   const marker = /^(?:([-+*]) |(\d{1,9})[.)] )/.exec(body)
 
   const list =
@@ -147,11 +150,11 @@ export const parseBlock = (source: string, start = 0): Block => {
 
   const content = heading
     ? remainder.slice(0, remainder.length - suffix.length)
-    : body.slice(list?.prefix.length ?? 0)
+    : body.slice(quote?.prefix.length ?? list?.prefix.length ?? 0)
 
   const inlines = parseInlines(
     content,
-    start + (heading?.prefix.length ?? list?.prefix.length ?? 0),
+    start + (heading?.prefix.length ?? quote?.prefix.length ?? list?.prefix.length ?? 0),
   )
 
   const plain = inlines.map((inline) => inline.text).join('')
@@ -159,8 +162,13 @@ export const parseBlock = (source: string, start = 0): Block => {
   const editable =
     (heading !== undefined ||
       list !== undefined ||
+      quote !== undefined ||
       !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/m.test(body)) &&
     !(list && /^(?:#|>|[-+*] |\d+[.)] |---|===)/.test(content)) &&
+    !(
+      quote &&
+      /^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/.test(content)
+    ) &&
     !/[*_`[\]<>\\|]/.test(plain)
 
   let block: Block = { start, end: start + source.length, source, editable, inlines }
@@ -168,6 +176,8 @@ export const parseBlock = (source: string, start = 0): Block => {
   if (heading) block = { ...block, heading }
 
   if (list) block = { ...block, list }
+
+  if (quote) block = { ...block, quote }
 
   if (alignment) block = { ...block, alignment }
 
@@ -185,12 +195,31 @@ export const parse = (source: string): ReadonlyArray<Block> => {
   const append = () => {
     if (end <= start) return
     const text = source.slice(start, end).replace(/[\r\n]+$/, '')
+
+    if (/^>(?: |$)/.test(text)) {
+      const quoted = Array.from(text.matchAll(/[^\r\n]+/g), (line) =>
+        parseBlock(line[0], start + line.index),
+      )
+
+      if (quoted.every((block) => block.quote && block.editable)) {
+        blocks.push(...quoted)
+
+        return
+      }
+    }
+
     blocks.push(parseBlock(text, start))
   }
 
   for (const line of lines) {
     if (!line[0]) continue
     const text = line[0].replace(/[\r\n]+$/, '')
+
+    if (!fence && /^\s{0,3}>/.test(text) && end > start && !/^\s{0,3}>/.test(source.slice(start))) {
+      append()
+      start = line.index
+      end = start
+    }
 
     if (!fence && /^(?: {0,3}#{1,6}(?:[ \t]|$)|[-+*] |\d{1,9}[.)] )/.test(text)) {
       append()

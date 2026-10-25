@@ -1,7 +1,7 @@
 import { parse, type Selection } from '@foldkit-mde/core'
 import * as Editor from '@foldkit-mde/editor/persistence'
 import * as IndexedDb from '@foldkit-mde/persistence/indexed-db'
-import { alignment, list } from '@foldkit-mde/plugins/blocks'
+import { alignment, list, quote } from '@foldkit-mde/plugins/blocks'
 import { bold } from '@foldkit-mde/plugins/bold'
 import { heading } from '@foldkit-mde/plugins/heading'
 import { italic } from '@foldkit-mde/plugins/italic'
@@ -40,9 +40,22 @@ const editor = Editor.make({
       active: (source: string, selection: Selection) => {
         const block = selectedBlock(source, selection)
 
-        return !!block?.editable && !block.list && (block.heading?.level ?? 0) === level
+        return (
+          !!block?.editable && !block.list && !block.quote && (block.heading?.level ?? 0) === level
+        )
       },
     })),
+    {
+      kind: 'Button',
+      group: 'Text style',
+      label: 'Quote',
+      plugin: quote,
+      active: (source: string, selection: Selection) => {
+        const block = selectedBlock(source, selection)
+
+        return !!block?.editable && !!block.quote
+      },
+    },
     ...(['bullet', 'ordered'] as const).map((kind) => ({
       kind: 'Button' as const,
       group: 'Lists',

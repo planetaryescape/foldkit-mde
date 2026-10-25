@@ -3,7 +3,82 @@ import { expect, test } from 'bun:test'
 import { init, Message, parse, update } from '@foldkit-mde/core'
 import { Arbitrary, Effect, Schema } from 'effect'
 
-import { alignment, list } from './blocks'
+import { alignment, list, quote } from './blocks'
+import { heading } from './heading'
+import { link } from './link'
+
+test('quote conversion removes heading/list prefixes, preserves marks and maps selection through shared history', () => {
+  for (const original of [
+    'A **longer** track',
+    '## A **longer** track ##',
+    '7) A **longer** track',
+  ]) {
+    const source = `Before\r\n\r\n${original} {align=right}\r\n\r\n::music{id="keep"}\r\n`
+    const start = source.indexOf('longer')
+    const selected = { start, end: start + 6 }
+    const transaction = quote.apply(source, selected)
+
+    if (!transaction) throw new Error('Expected quote conversion')
+    const initial = update(init(source), Message.cases.Selected.make({ selection: selected }))
+    const quoted = update(initial, Message.cases.Applied.make({ transaction }))
+    expect(quoted.source).toBe(
+      'Before\r\n\r\n> A **longer** track {align=right}\r\n\r\n::music{id="keep"}\r\n',
+    )
+    expect(quoted.source.slice(quoted.selection.start, quoted.selection.end)).toBe('longer')
+    expect(quote.apply(quoted.source, quoted.selection)?.text).toBe(
+      'A **longer** track {align=right}',
+    )
+    expect(heading(0).apply(quoted.source, quoted.selection)?.text).toBe(
+      'A **longer** track {align=right}',
+    )
+    expect(heading(2).apply(quoted.source, quoted.selection)?.text).toBe(
+      '## A **longer** track {align=right}',
+    )
+    expect(list('bullet').apply(quoted.source, quoted.selection)?.text).toBe(
+      '- A **longer** track {align=right}',
+    )
+    expect(link.apply(quoted.source, quoted.selection, '/mix')?.text).toBe(
+      '> A [**longer**](/mix) track {align=right}',
+    )
+    const markdown = update(quoted, Message.cases.ChangedMode.make({ mode: 'Markdown' }))
+    const undone = update(markdown, Message.cases.Undo.make({}))
+    expect(undone.source).toBe(source)
+    expect(undone.selection).toEqual(selected)
+    expect(update(undone, Message.cases.Redo.make({})).source).toBe(quoted.source)
+  }
+
+  for (const source of [
+    '> > nested',
+    '> # heading',
+    '> - list',
+    '> words\nlazy',
+    '::music{id="keep"}',
+  ])
+    expect(quote.apply(source, { start: 0, end: 0 })).toBeUndefined()
+  expect(quote.apply('One\n\nTwo', { start: 0, end: 8 })).toBeUndefined()
+})
+
+test('quote and paragraph conversion separate neighboring source rather than creating lazy continuations', () => {
+  const source = '> First\r\n> Second\r\n> Third'
+  const transaction = heading(0).apply(source, { start: 11, end: 17 })
+
+  if (!transaction) throw new Error('Expected paragraph conversion')
+  const converted = update(init(source), Message.cases.Applied.make({ transaction }))
+  expect(converted.source).toBe('> First\r\n\r\nSecond\r\n\r\n> Third')
+  expect(parse(converted.source).every((block) => block.editable)).toBe(true)
+  expect(converted.source.slice(converted.selection.start, converted.selection.end)).toBe('Second')
+  const quoted = quote.apply('## Heading\nAfter', { start: 3, end: 3 })
+  expect(quoted?.text).toBe('> Heading\n')
+
+  for (const following of ['## Second', '- Second']) {
+    const adjacent = `> First\n${following}`
+    const selection = { start: adjacent.indexOf('Second'), end: adjacent.length }
+    expect(heading(0).apply(adjacent, selection)?.text).toBe('\nSecond')
+
+    if (following.startsWith('-'))
+      expect(list('bullet').apply(adjacent, selection)?.text).toBe('\nSecond')
+  }
+})
 
 test('list conversion preserves content, maps a multi-block selection and shares history', () => {
   const source = 'Before\r\n\r\nFirst **mix**\r\n\r\nSecond track\r\n\r\n::music{id="keep"}\r\n'
@@ -44,7 +119,7 @@ test('alignment is source-backed, preserves heading/list spelling and refuses pr
   expect(parse('Mix {align=unsafe}')[0]?.alignment).toBeUndefined()
 })
 
-test('generated list and alignment histories retain Unicode content and match an independent source model', async () => {
+test('generated quote, list and alignment histories retain Unicode content and match an independent source model', async () => {
   // oxlint-disable-next-line effecttsgo/unstable-api-usage -- Schema generation is pinned to Effect 4.0.0.
   const inputs = Arbitrary.schema(
     Schema.Struct({
@@ -61,13 +136,23 @@ test('generated list and alignment histories retain Unicode content and match an
         const label = 'Mix ' + words.join(' ')
         const source = label + '\n\n::music{id="keep"}\n'
 
-        const conversion = list(ordered ? 'ordered' : 'bullet').apply(source, {
+        const quotation = quote.apply(source, {
           start: 0,
           end: label.length,
         })
 
+        if (!quotation) return false
+        const quoted = update(init(source), Message.cases.Applied.make({ transaction: quotation }))
+
+        if (quoted.source !== '> ' + source) return false
+
+        const conversion = list(ordered ? 'ordered' : 'bullet').apply(
+          quoted.source,
+          quoted.selection,
+        )
+
         if (!conversion) return false
-        const model = update(init(source), Message.cases.Applied.make({ transaction: conversion }))
+        const model = update(quoted, Message.cases.Applied.make({ transaction: conversion }))
         const expected = (ordered ? '1. ' : '- ') + label
 
         if (model.source !== expected + '\n\n::music{id="keep"}\n') return false
@@ -76,10 +161,15 @@ test('generated list and alignment histories retain Unicode content and match an
         if (!centered) return false
         const aligned = update(model, Message.cases.Applied.make({ transaction: centered }))
 
+        const undone = update(
+          update(aligned, Message.cases.Undo.make({})),
+          Message.cases.Undo.make({}),
+        )
+
         return (
           aligned.source === expected + ' {align=center}\n\n::music{id="keep"}\n' &&
-          update(update(aligned, Message.cases.Undo.make({})), Message.cases.Undo.make({}))
-            .source === source
+          undone.source === '> ' + source &&
+          update(undone, Message.cases.Undo.make({})).source === source
         )
       },
       { seed: 714, runs: 150, size: 30 },

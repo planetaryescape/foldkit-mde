@@ -136,7 +136,7 @@ export const read = (root: Element) => {
 
     const prefix = heading
       ? heading.prefix.replace(/([^ \t])$/, '$1 ')
-      : (originalBlock?.list?.prefix ?? '')
+      : (originalBlock?.quote?.prefix ?? originalBlock?.list?.prefix ?? '')
 
     const suffix = heading?.suffix ?? ''
 
@@ -231,29 +231,41 @@ export const split = (root: Element): Transaction | undefined => {
   const suffix = serialize(after.cloneContents())
   const heading = first.block.heading
   const list = first.block.list
+  const quote = first.block.quote
   const alignment = first.block.alignment?.suffix ?? ''
 
-  if (list) {
+  if (list || quote) {
     const empty = first === last && first.block.inlines.every((inline) => !inline.text)
-    const marker = list.kind === 'ordered' ? `${list.ordinal + 1}. ` : list.prefix
+    const opening = quote?.prefix ?? list?.prefix ?? ''
+    const marker = list?.kind === 'ordered' ? `${list.ordinal + 1}. ` : opening
     const newline = state.source.includes('\r\n') ? '\r\n' : '\n'
     const next = state.entries[state.entries.indexOf(last) + 1]
+    const previousQuote = state.entries[state.entries.indexOf(first) - 1]?.block.quote
 
     const gap = next ? state.source.slice(last.block.end, next.block.start) : ''
+    const exitGap = (quote || previousQuote) && first.block.start > 0 ? 2 : 3
 
     const exit = next
-      ? newline.repeat(Math.max(0, 3 - (gap.match(/\r\n|\n|\r/g)?.length ?? 0)))
+      ? newline.repeat(Math.max(0, exitGap - (gap.match(/\r\n|\n|\r/g)?.length ?? 0)))
       : ''
 
+    const before =
+      (quote || previousQuote) &&
+      empty &&
+      first.block.start > 0 &&
+      !state.source.slice(0, first.block.start).endsWith(newline + newline)
+        ? newline
+        : ''
+
     const text = empty
-      ? alignment + exit
-      : `${list.prefix}${prefix}${alignment}${newline}${marker}${suffix}${alignment}`
+      ? before + alignment + exit
+      : `${opening}${prefix}${alignment}${newline}${marker}${suffix}${alignment}`
 
     const caret =
       first.block.start +
       (empty
-        ? 0
-        : list.prefix.length + prefix.length + alignment.length + newline.length + marker.length)
+        ? before.length
+        : opening.length + prefix.length + alignment.length + newline.length + marker.length)
 
     return {
       start: first.block.start,
@@ -286,18 +298,42 @@ export const backspace = (root: Element): Transaction | undefined => {
 
   if (!selected || selected.start !== selected.end) return undefined
 
-  const block = state.entries.find(
+  const index = state.entries.findIndex(
     (entry) => entry.block.start <= selected.start && entry.block.end >= selected.start,
-  )?.block
+  )
 
-  if (!block?.editable || !block.list || selected.start !== block.inlines[0]?.start)
+  const block = state.entries[index]?.block
+
+  if (
+    !block?.editable ||
+    (!block.list && !block.quote) ||
+    selected.start !== block.inlines[0]?.start
+  )
     return undefined
+  const prefix = block.quote?.prefix ?? block.list?.prefix ?? ''
+  const newline = state.source.includes('\r\n') ? '\r\n' : '\n'
+
+  const before =
+    (block.quote || state.entries[index - 1]?.block.quote) &&
+    block.start > 0 &&
+    !state.source.slice(0, block.start).endsWith(newline + newline)
+      ? newline
+      : ''
+
+  const after =
+    block.quote &&
+    block.end < state.source.length &&
+    !state.source.slice(block.end).startsWith(newline + newline)
+      ? newline
+      : ''
+
+  const caret = block.start + before.length
 
   return {
     start: block.start,
     end: block.end,
-    text: block.source.slice(block.list.prefix.length),
-    selection: { start: block.start, end: block.start },
+    text: before + block.source.slice(prefix.length) + after,
+    selection: { start: caret, end: caret },
   }
 }
 
@@ -321,9 +357,11 @@ export const renderVisual = (
     const node = document.createElement(
       block.editable && block.list
         ? 'li'
-        : block.editable && block.heading
-          ? `h${block.heading.level}`
-          : 'div',
+        : block.editable && block.quote
+          ? 'blockquote'
+          : block.editable && block.heading
+            ? `h${block.heading.level}`
+            : 'div',
     )
 
     node.dataset['start'] = String(block.start)

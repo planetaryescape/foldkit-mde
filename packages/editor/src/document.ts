@@ -255,6 +255,8 @@ export const renderVisual = (
 
     if (block.editable) {
       node.className = 'mde-paragraph'
+      let anchor: HTMLAnchorElement | undefined
+      let linkStart: number | undefined
 
       for (const inline of block.inlines) {
         let content: Node = document.createTextNode(inline.text)
@@ -272,13 +274,19 @@ export const renderVisual = (
         }
 
         if (inline.href !== undefined) {
-          const anchor = document.createElement('a')
-          anchor.setAttribute('href', inline.href)
-          anchor.append(content)
-          content = anchor
-        }
+          if (!anchor || linkStart !== inline.link?.start) {
+            anchor = document.createElement('a')
+            anchor.setAttribute('href', inline.href)
+            node.append(anchor)
+          }
 
-        node.append(content)
+          anchor.append(content)
+          linkStart = inline.link?.start
+        } else {
+          anchor = undefined
+          linkStart = undefined
+          node.append(content)
+        }
       }
 
       if (block.inlines.every((inline) => !inline.text)) node.append(document.createElement('br'))

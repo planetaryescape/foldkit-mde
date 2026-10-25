@@ -7,6 +7,12 @@ export interface Inline {
   readonly underline: boolean
   readonly strikethrough: boolean
   readonly href?: string
+  readonly link?: {
+    readonly start: number
+    readonly end: number
+    readonly labelStart: number
+    readonly labelEnd: number
+  }
 }
 
 export interface Block {
@@ -27,7 +33,7 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
   let cursor = 0
 
   for (const match of source.matchAll(
-    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n*_`<>\\~]+)\]\(([^\s()<>\\]+)\)|~~([^~\r\n]+)~~/g,
+    /<u>([^<>\r\n]+)<\/u>|(\*{1,3})([^*\r\n]+)\2|\[([^\][\r\n`\\]+)\]\(([^\s()<>\\]+)\)|~~([^~\r\n]+)~~/g,
   )) {
     const href = match[5]
 
@@ -60,16 +66,18 @@ export const parseInlines = (source: string, offset = 0): ReadonlyArray<Inline> 
     const start = offset + match.index + prefix
 
     if (href !== undefined) {
-      result.push({
-        text,
-        start,
-        end: start + text.length,
-        bold: false,
-        italic: false,
-        underline: false,
-        strikethrough: false,
-        href,
-      })
+      result.push(
+        ...parseInlines(text, start).map((inline) => ({
+          ...inline,
+          href,
+          link: {
+            start: offset + match.index,
+            end: offset + match.index + match[0].length,
+            labelStart: start,
+            labelEnd: start + text.length,
+          },
+        })),
+      )
     } else {
       // Only the declared marks recurse; other HTML and unsupported syntax remain raw text.
       result.push(
@@ -115,19 +123,11 @@ export const parseBlock = (source: string, start = 0): Block => {
   const content = heading ? remainder.slice(0, remainder.length - suffix.length) : source
   const inlines = parseInlines(content, start + (heading ? prefix.length : 0))
 
-  const plain = inlines
-    .filter((inline) => inline.href === undefined)
-    .map((inline) => inline.text)
-    .join('')
+  const plain = inlines.map((inline) => inline.text).join('')
 
   const editable =
     (heading !== undefined ||
       !/^(?: {4}|\t|\s{0,3}(?:#|>|[-+*] |\d+[.)] |`{3}|~{3}|::|<(?!u>)|---|===))/m.test(source)) &&
-    !inlines.some(
-      (inline) =>
-        inline.href !== undefined &&
-        (inline.bold || inline.italic || inline.underline || inline.strikethrough),
-    ) &&
     !/[*_`[\]<>\\|]/.test(plain)
 
   const block = { start, end: start + source.length, source, editable, inlines }

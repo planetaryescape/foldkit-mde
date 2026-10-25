@@ -3,7 +3,52 @@ import { expect, test } from 'bun:test'
 import { init, Message, parse, sourceOffset, update, visualOffset } from '@foldkit-mde/core'
 import { Arbitrary, Effect, Schema } from 'effect'
 
-import { link } from './link'
+import { link, linkInput } from './link'
+
+test('links preserve selected formatting, including partial and mixed spans, through replacement, removal and undo', () => {
+  for (const [source, start, end, label] of [
+    ['A **longer** track.', 4, 10, 'longer'],
+    ['A *longer* track.', 3, 6, 'lon'],
+    ['A <u>longer</u> track.', 5, 11, 'longer'],
+    ['A ~~longer~~ track.', 4, 10, 'longer'],
+    ['A **longer** track.', 7, 18, 'ger track'],
+  ] as const) {
+    const transaction = link.apply(source, { start, end }, '/mix')
+    expect(transaction).toBeDefined()
+
+    if (!transaction) throw new Error('Expected formatted link')
+    const formatted = update(init(source), Message.cases.Applied.make({ transaction }))
+    const block = parse(formatted.source)[0]
+    expect(block?.editable).toBe(true)
+    expect(
+      block?.inlines
+        .filter((inline) => inline.href === '/mix')
+        .map((inline) => inline.text)
+        .join(''),
+    ).toBe(label)
+    expect(block?.inlines.map((inline) => inline.text).join('')).toBe('A longer track.')
+    expect(block?.inlines.find((inline) => inline.text.includes('lon'))?.bold).toBe(
+      source.includes('**'),
+    )
+    expect(linkInput(formatted.source, formatted.selection)).toBe('/mix')
+    const replacement = link.apply(formatted.source, formatted.selection, '/new')
+    expect(replacement).toBeDefined()
+
+    if (!replacement) throw new Error('Expected replacement')
+    const replaced = update(formatted, Message.cases.Applied.make({ transaction: replacement }))
+    expect(linkInput(replaced.source, replaced.selection)).toBe('/new')
+    const removal = link.apply(replaced.source, replaced.selection, '')
+    expect(removal).toBeDefined()
+
+    if (!removal) throw new Error('Expected removal')
+    expect(
+      parse(update(replaced, Message.cases.Applied.make({ transaction: removal })).source)[0]
+        ?.inlines.map((inline) => inline.text)
+        .join(''),
+    ).toBe('A longer track.')
+    expect(update(formatted, Message.cases.Undo.make({})).source).toBe(source)
+  }
+})
 
 test('a link transaction changes selected words only, supports URL replacement and removal, and shares history', () => {
   const source = 'Before\r\n\r\nslow build\r\n\r\n::music{id="keep"}\r\n'
@@ -64,10 +109,6 @@ test('links reject unsafe destinations and ambiguous selections without changing
   }
 
   expect(link.apply('A [longer](/mix) track.', { start: 4, end: 7 }, '/new')).toBeUndefined()
-  expect(link.apply('A **longer** track.', { start: 4, end: 10 }, '/new')).toBeUndefined()
-  expect(link.apply('A *longer* track.', { start: 3, end: 9 }, '/new')).toBeUndefined()
-  expect(link.apply('A <u>longer</u> track.', { start: 5, end: 11 }, '/new')).toBeUndefined()
-  expect(link.apply('A ~~longer~~ track.', { start: 4, end: 10 }, '/new')).toBeUndefined()
   expect(link.apply('```\nlonger\n```', { start: 4, end: 10 }, '/new')).toBeUndefined()
   expect(link.apply('A longer\n\ntrack.', { start: 2, end: 15 }, '/new')).toBeUndefined()
   expect(link.apply('A longer track.', { start: 2, end: 2 }, '/new')).toBeUndefined()

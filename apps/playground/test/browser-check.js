@@ -77,6 +77,7 @@ async function checkEditor() {
     await new Promise((resolve) => requestAnimationFrame(resolve))
   }
 
+  await until(() => document.querySelector('.mde'))
   const editor = document.querySelector('.mde')
 
   for (const width of [320, 360, 480, 600, 740, 960]) {
@@ -178,6 +179,101 @@ async function checkEditor() {
           'Ordinary Markdown paste is left to the native textarea',
         )
     }
+  }
+
+  for (const editingMode of ['Visual', 'Markdown']) {
+    for (const [marked, tag, start, end] of [
+      ['**longer**', 'strong', 4, 10],
+      ['*longer*', 'em', 3, 9],
+      ['<u>longer</u>', 'u', 5, 11],
+      ['~~longer~~', 's', 4, 10],
+    ]) {
+      const fixture = `A ${marked} track.\n\n::music{id="keep"}`
+      await setSource(fixture)
+      let target
+
+      if (editingMode === 'Markdown') {
+        await mode('Markdown')
+        target = document.querySelector('textarea')
+        target.focus()
+        target.setSelectionRange(start, end)
+      } else {
+        target = document.querySelector(`.mde-paragraph ${tag}`)
+        select(target, target.firstChild, 0, 6)
+      }
+
+      const clipboard = new DataTransfer()
+      clipboard.setData('text/plain', 'https://example.test/formatted')
+      target.dispatchEvent(
+        new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: clipboard }),
+      )
+      await until(
+        () =>
+          source() === `A [${marked}](https://example.test/formatted) track.\n\n::music{id="keep"}`,
+      )
+      await mode('Visual')
+      assert(
+        document.querySelector(`a ${tag}`)?.textContent === 'longer',
+        'URL paste preserves the selected formatting',
+      )
+      assert(window.getSelection().toString() === 'longer', 'Formatted link retains selection')
+      document.execCommand('insertText', false, 'short')
+      await until(
+        () =>
+          source() ===
+          `A [${marked.replace('longer', 'short')}](https://example.test/formatted) track.\n\n::music{id="keep"}`,
+      )
+      await action('Undo')
+      await until(() => source().includes('longer'))
+      await action('Undo')
+      await until(() => source() === fixture)
+    }
+
+    const fixture = 'A **longer** track.\n\n::music{id="keep"}'
+    await setSource(fixture)
+    let target
+
+    if (editingMode === 'Markdown') {
+      await mode('Markdown')
+      target = document.querySelector('textarea')
+      target.focus()
+      target.setSelectionRange(7, 18)
+    } else {
+      target = document.querySelector('.mde-paragraph')
+      target.closest('.mde-visual').focus()
+      const range = document.createRange()
+      range.setStart(target.querySelector('strong').firstChild, 3)
+      range.setEnd(target.lastChild, 6)
+      window.getSelection().removeAllRanges()
+      window.getSelection().addRange(range)
+    }
+
+    const clipboard = new DataTransfer()
+    clipboard.setData('text/plain', 'https://example.test/mixed')
+    target.dispatchEvent(
+      new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: clipboard }),
+    )
+    const formatted = 'A **lon**[**ger** track](https://example.test/mixed).\n\n::music{id="keep"}'
+    await until(() => source() === formatted)
+    await mode('Visual')
+    assert(
+      document.querySelector('a')?.textContent === 'ger track' &&
+        document.querySelector('a strong')?.textContent === 'ger',
+      'Mixed selections preserve both formatting and words',
+    )
+    await key(document.querySelector('.mde-visual'), 'k', { ctrlKey: true })
+    await until(() => document.activeElement.getAttribute('aria-label') === 'Link destination')
+    assert(
+      document.activeElement.value === 'https://example.test/mixed',
+      'The complete mixed link can be edited',
+    )
+    document.activeElement.value = '/replacement'
+    document.activeElement.form.requestSubmit()
+    await until(() => source() === formatted.replace('https://example.test/mixed', '/replacement'))
+    await action('Undo')
+    await until(() => source() === formatted)
+    await action('Undo')
+    await until(() => source() === fixture)
   }
 
   const modeFixture = 'A longer track\n\n::music{id="keep"}'

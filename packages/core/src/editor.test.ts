@@ -132,9 +132,9 @@ test('inline italic and attribute-free underline map visible text without enabli
     '*unfinished',
     '<u>unfinished',
     '**<img src=x>**',
-    '**[label](/mix)**',
-    '~~[label](/mix)~~',
-    '[~~label~~](/mix)',
+    '[<img src=x>](/mix)',
+    '[<u onclick="bad()">label</u>](/mix)',
+    '[**label**](javascript:evil)',
   ])
     expect(parse(source)[0]?.editable).toBe(false)
 })

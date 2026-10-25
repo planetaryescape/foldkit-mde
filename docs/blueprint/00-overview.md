@@ -10,7 +10,7 @@ Users should move between editable Visual mode and raw Markdown without maintain
 
 ## Implemented behavior
 
-- Markdown source is authoritative. Visual paragraphs, ATX headings, bold, asterisk italic, attribute-free underline, double-tilde strikethrough and plain-label links are a derived editable view, with unsupported syntax preserved rather than silently rewritten.
+- Markdown source is authoritative. Visual paragraphs, ATX headings, bold, asterisk italic, attribute-free underline, double-tilde strikethrough and links with those inline marks are a derived editable view, with unsupported syntax preserved rather than silently rewritten.
 - One continuous Visual editing host shares transactions and undo/redo with raw mode.
 - Formatting and representation contracts belong to core. Inline mark/link/heading implementations belong to plugins; the host selects Button/Input tools and the editor routes accepted transactions to core. Markdown and versioned JSON are representations, not separate stores. JSON version 4 records all four inline marks and distinguishes Heading nodes by level.
 - Protected source cards are focusable groups. Enter/F2 opens their source; arrows move between cards and text; Delete/Backspace uses shared history and undo restores the block's keyboard focus.

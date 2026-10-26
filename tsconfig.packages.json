@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "rootDir": "./packages",
+    "outDir": "./dist/declarations"
+  },
+  "include": ["packages/core/src/**/*.ts", "packages/editor/src/**/*.ts", "packages/plugins/src/**/*.ts", "packages/persistence/src/**/*.ts"],
+  "exclude": ["**/*.test.ts"]
+}

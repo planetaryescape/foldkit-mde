@@ -67,6 +67,10 @@
         "effect": "catalog:",
       },
     },
+    "packages/tooling": {
+      "name": "@foldkit-mde/tooling",
+      "version": "0.0.0",
+    },
   },
   "catalog": {
     "effect": "4.0.0",
@@ -102,6 +106,8 @@
     "@foldkit-mde/playground": ["@foldkit-mde/playground@workspace:apps/playground"],
 
     "@foldkit-mde/plugins": ["@foldkit-mde/plugins@workspace:packages/plugins"],
+
+    "@foldkit-mde/tooling": ["@foldkit-mde/tooling@workspace:packages/tooling"],
 
     "@oxfmt/binding-android-arm-eabi": ["@oxfmt/binding-android-arm-eabi@0.72.0", "", { "os": "android", "cpu": "arm" }, "sha512-u4U1uaDOVBuorGNC/07NLm48nECHOiJJka002YGML16Md2DRvf38RGBt01lH60EOGvNlFVmbLoksQedNBoZHKw=="],
 

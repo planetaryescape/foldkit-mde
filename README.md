@@ -53,7 +53,7 @@ docs/
 
 The editor depends on core. The playground composes both and owns `Runtime.makeApplication` and `Runtime.run`. Core imports neither Foldkit nor browser APIs. Packages communicate through explicit exports and `workspace:*` dependencies, not relative paths into other workspaces.
 
-There is one root `bun.lock`. The root catalog pins runtime versions for all workspaces. All packages are private; these TypeScript source exports are not yet a publication pipeline:
+There is one root `bun.lock`. The root catalog pins runtime versions for all workspaces. Workspace packages stay private and use TypeScript source exports for development. `bun run pack` produces separate installable ESM distributions with declarations and CSS; it does not publish them:
 
 - `@foldkit-mde/core`: Model, Message, selection, transactions, `init`, `update`, and source-span parsing/mapping.
 - `@foldkit-mde/editor`: `make(formatting)` returns a matching Foldkit view and update; Message, Formatted, Model and Synchronize are exported.
@@ -70,6 +70,24 @@ There is one root `bun.lock`. The root catalog pins runtime versions for all wor
 - `@foldkit-mde/persistence/autosave`: pure lifecycle, events, intents, and flush outcomes.
 
 Only Foldkit and Effect are external application dependencies. Foldkit requires `@effect/platform-browser` and `parse5`, which also brings `entities`; Bun resolves those peer/transitive dependencies. The additional packages are development tooling, not editor runtime dependencies.
+
+### Installable tarballs
+
+Run `bun run pack` to build the four runtime packages into `dist/packages/` and create `dist/tarballs/foldkit-mde-{core,persistence,plugins,editor}-0.0.0.tgz`. Building requires the repository's Bun/TypeScript toolchain, Bash and jq. Generated manifests replace source exports with ESM JavaScript and `.d.ts` exports, replace workspace dependencies with exact package versions, and declare Effect 4.0.0 and (for editor) Foldkit 0.167.0 as peers. Dependencies are not bundled; the host supplies the shared Effect/Foldkit runtime. CSS is retained as a side effect and remains available at `@foldkit-mde/editor/style.css`.
+
+For an initial trial, install all four tarballs together in a separate app, alongside the compatible host dependencies:
+
+```sh
+npm install /path/to/tarballs/foldkit-mde-{core,persistence,plugins,editor}-0.0.0.tgz effect@4.0.0 foldkit@0.167.0
+```
+
+For Bun 1.4.0, also put `file:` overrides for the four package names in the consumer's `package.json` before installing. Bun otherwise tries to fetch unpublished sibling versions from the registry even when all four tarballs are supplied. For example, `"overrides": { "@foldkit-mde/core": "file:/path/to/tarballs/foldkit-mde-core-0.0.0.tgz", "@foldkit-mde/persistence": "file:/path/to/tarballs/foldkit-mde-persistence-0.0.0.tgz", "@foldkit-mde/plugins": "file:/path/to/tarballs/foldkit-mde-plugins-0.0.0.tgz", "@foldkit-mde/editor": "file:/path/to/tarballs/foldkit-mde-editor-0.0.0.tgz" }`. The [consumer check](packages/tooling/test-consumer.sh) generates both direct file dependencies and these overrides, then runs `bun install`. Registry releases would use the normal exact sibling versions, without local overrides.
+
+Use a fresh consumer install when replacing a tarball at the same development version. These `0.0.0` artifacts are local trial builds, not immutable registry releases. Import the stylesheet in the host's HTML or bundler entry. The [standalone Foldkit fixture](packages/tooling/consumer/main.ts) demonstrates runtime composition, host-selected shortcuts, source projection and optional IndexedDB saving without importing playground code.
+
+`bun run test:consumer` rebuilds and packs, installs the tarballs into a disposable directory outside this repository, typechecks the public API, executes formatting/undo and memory-backed startup under Node ESM, then builds the browser fixture including CSS. It removes that temporary installation afterward. This checks a real install rather than workspace symlinks; it requires registry access for the pinned host dependencies. Browser interaction and IndexedDB reload are separate verification from this command.
+
+Workspace scripts and source/tests are not included in tarballs. The generated manifests say `UNLICENSED`: this repository has not declared a distribution license. Registry naming/ownership, a distribution license, release versioning and publishing authorization remain prerequisites for a public release. No registry publishing, GBFM changes or GBFM compatibility claim is included. Before embedding there, check its actual Foldkit/Effect versions and decide stable document identity, local-recovery policy and the boundary with backend saving.
 
 ### Effect version
 

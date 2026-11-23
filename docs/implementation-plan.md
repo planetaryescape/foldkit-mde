@@ -1,6 +1,6 @@
 # Implementation plan
 
-Status: S01 is committed and pushed; S02 and S03 merged in PRs #1 and #3. S04 is a local UI improvement pass requested by the owner. Existing implementation is summarized in [the log](implementation-log.md) and [the overview](blueprint/00-overview.md).
+Status: S01 is committed and pushed; S02 and S03 merged in PRs #1 and #3. S04 and S05 merged with the follow-up editor work in PRs #4 and #5. S06 makes the editor installable for an external consumer trial. Existing implementation is summarized in [the log](implementation-log.md) and [the overview](blueprint/00-overview.md).
 
 ## S01: Make documentation navigable and maintainable
 
@@ -38,7 +38,7 @@ Non-goals: lists, Setext headings, full CommonMark/GFM, dynamic registration, cu
 
 ## S04: A quieter editor UI
 
-Status: implemented and verified on `feat/editor-ui-polish`. See the implementation log for delivery evidence.
+Status: merged in [PR #4](https://github.com/planetaryescape/foldkit-mde/pull/4). See the implementation log for delivery evidence.
 
 Outcome: a compact page header and persistent toolbar give the document more space. Host-selected paragraph/heading tools share a Text style dropdown; Link opens its input only when needed. Native popovers own keyboard/light-dismiss behavior. Owner feedback expanded the slice to include asterisk italic, attribute-free underline, double-tilde strikethrough, a drawn chevron, a visible mode-switch shortcut and protected-card keyboard controls. These use existing source transactions/history and saving policy; JSON version 4 records all four marks.
 
@@ -48,10 +48,20 @@ Non-goals: floating selection toolbar, simultaneous split view, full CommonMark 
 
 ## S05: Flat lists and block alignment
 
-Status: implemented and verified locally on `feat/editor-ui-polish`; see the implementation log for delivery evidence.
+Status: merged in [PR #4](https://github.com/planetaryescape/foldkit-mde/pull/4); see the implementation log for delivery evidence.
 
 Outcome: host-selected Lists and Align menus use pure transactions, existing history and local saving. Flat unindented bulleted/numbered items share semantic list containers in the single editing host. Enter continues a list, empty-item Enter exits it, and Backspace at the item start removes its marker. Left/Center/Right/Justify use an explicit source suffix rather than hidden state. JSON version 5 adds ListItem nodes and optional alignment.
 
 Acceptance: convert selected single-line blocks in both modes, retain inline marks and unrelated source, undo conversions, continue/exit lists without joining neighboring paragraphs, and reload semantic lists/alignment from autosave. Inspect open menus and desktop/intermediate/narrow layouts, real pointer/keyboard input, mutation-checked generated source histories, precommit, build and all browser suites.
 
 Non-goals: nested/task lists, automatic marker detection while typing, full CommonMark list semantics, portable Markdown alignment, dynamic plugin registration and gbfm integration.
+
+## S06: Installable packages and a standalone consumer
+
+Status: implemented and verified locally on `feat/installable-packages`; commit and PR submission pending. See the implementation log for evidence.
+
+Outcome: build ESM, declarations and CSS for the four runtime packages, pack local tarballs with resolved sibling versions and exact host peers, and prove installation outside the monorepo. Keep workspace development on source exports. Development tooling belongs in `packages/tooling`, not runtime packages.
+
+Acceptance: an isolated Foldkit app installs all four tarballs without workspace links, typechecks their public exports, runs pure formatting/undo and opt-in memory-backed startup under Node ESM, and builds the browser entry with the exported CSS. Verify actual browser editing, shortcuts, mode switching and IndexedDB reload against installed artifacts. Run precommit, full build and existing browser/storage/persistence suites. Document the embedding recipe and what remains before registry publication and a GBFM trial.
+
+Non-goals: registry publishing, release automation, new editor capabilities, GBFM edits or assumed version compatibility, custom music components and backend saving. Distribution license and registry ownership remain owner decisions; trial manifests are `UNLICENSED` rather than inventing a license grant.

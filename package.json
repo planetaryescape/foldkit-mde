@@ -13,7 +13,10 @@
   },
   "scripts": {
     "dev": "bun run --filter @foldkit-mde/playground dev",
-    "build": "bun run --filter @foldkit-mde/playground build",
+    "build": "bun run build:packages && bun run --filter @foldkit-mde/playground build",
+    "build:packages": "bash packages/tooling/build.sh",
+    "pack": "bun run build:packages && bash packages/tooling/pack.sh",
+    "test:consumer": "bun run pack && bash packages/tooling/test-consumer.sh",
     "test": "bun run --workspaces --if-present test",
     "typecheck": "tsc --noEmit -p tsconfig.json && bun run --filter @foldkit-mde/anti-slop typecheck",
     "lint": "oxlint --deny-warnings .",

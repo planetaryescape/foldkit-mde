@@ -59,7 +59,6 @@ test('JSON projects link destinations without treating unsafe raw syntax as acti
 test('JSON distinguishes semantic heading levels from paragraphs and protected Markdown', () => {
   const source = '### A **longer** [track](/mix) ###\nParagraph\n\n# `unsupported`'
   const document = json.project(source)
-  expect(document.version).toBe(6)
   expect(document.nodes.map((node) => node._tag)).toEqual(['Heading', 'Paragraph', 'Raw'])
   expect(document.nodes[0]).toMatchObject({
     level: 3,

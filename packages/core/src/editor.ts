@@ -59,13 +59,16 @@ const apply = (model: Model, transaction: Transaction): Model => {
   )
     return model
 
-  return replace(
-    model,
+  const source =
     model.source.slice(0, transaction.start) +
-      transaction.text +
-      model.source.slice(transaction.end),
-    transaction.selection,
-  )
+    transaction.text +
+    model.source.slice(transaction.end)
+
+  const { start, end } = transaction.selection
+
+  if (start < 0 || end < start || end > source.length) return model
+
+  return replace(model, source, transaction.selection)
 }
 
 export const update = (model: Model, message: Message): Model =>

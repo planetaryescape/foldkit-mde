@@ -218,6 +218,30 @@ test('single-level quotes retain inline spans and protect nested, structural and
   }
 })
 
+test('a formatting transaction with an invalid resulting selection leaves source and history alone', () => {
+  const model = init('one two')
+
+  for (const selection of [
+    { start: -1, end: 0 },
+    { start: 3, end: 2 },
+    { start: 0, end: 6 },
+  ]) {
+    const transaction = { start: 0, end: 3, text: 'x', selection }
+
+    expect(update(model, Message.cases.Applied.make({ transaction }))).toEqual(model)
+  }
+
+  const transaction = { start: 0, end: 3, text: 'x', selection: { start: 5, end: 5 } }
+  const updated = update(model, Message.cases.Applied.make({ transaction }))
+
+  expect(updated.source).toBe('x two')
+  expect(updated.selection).toEqual({ start: 5, end: 5 })
+  const undone = update(updated, Message.cases.Undo.make({}))
+
+  expect(undone.source).toBe(model.source)
+  expect(undone.selection).toEqual(model.selection)
+})
+
 test('undo and redo restore selection across modes without recording a source no-op', () => {
   const selected = update(
     init('longer track'),

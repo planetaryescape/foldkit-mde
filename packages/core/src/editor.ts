@@ -75,7 +75,10 @@ export const update = (model: Model, message: Message): Model =>
   Match.value(message).pipe(
     Match.withReturnType<Model>(),
     Match.tagsExhaustive({
-      UpdatedSource: ({ source, selection }) => replace(model, source, selection),
+      UpdatedSource: ({ source, selection }) =>
+        selection.start < 0 || selection.end < selection.start || selection.end > source.length
+          ? model
+          : replace(model, source, selection),
       Selected: ({ selection }) => ({ ...model, selection }),
       Applied: ({ transaction }) => apply(model, transaction),
       ChangedMode: ({ mode }) => ({ ...model, mode }),

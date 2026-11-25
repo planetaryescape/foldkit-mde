@@ -349,3 +349,34 @@ test('generated editing histories match an independent source history across mod
 
   expect(result._tag, JSON.stringify(result)).toBe('Passed')
 })
+
+test('oracle nightly regression rejects invalid source selections without changing history', () => {
+  const initial = init('old')
+
+  const edited = update(
+    initial,
+    Message.cases.UpdatedSource.make({ source: 'new text', selection: { start: 2, end: 4 } }),
+  )
+
+  const undone = update(edited, Message.cases.Undo.make({}))
+  expect(undone.source).toBe('old')
+  expect(undone.selection).toEqual({ start: 0, end: 0 })
+
+  for (const selection of [
+    { start: -1, end: 0 },
+    { start: 2, end: 1 },
+    { start: 0, end: 4 },
+  ]) {
+    expect(update(undone, Message.cases.UpdatedSource.make({ source: 'abc', selection }))).toEqual(
+      undone,
+    )
+    expect(update(undone, Message.cases.UpdatedSource.make({ source: 'old', selection }))).toEqual(
+      undone,
+    )
+  }
+
+  const redone = update(undone, Message.cases.Redo.make({}))
+  expect(redone.source).toBe('new text')
+  expect(redone.selection).toEqual({ start: 2, end: 4 })
+  expect(update(redone, Message.cases.Undo.make({}))).toEqual(undone)
+})
